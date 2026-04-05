@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Studynex Dashboard | Academic Command Center</title>
+    
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+    
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "on-primary-container": "#dad7ff",
+                        "primary-fixed-dim": "#c3c0ff",
+                        "on-surface": "#dae2fd",
+                        "surface-container-high": "#222a3d",
+                        "surface-variant": "#2d3449",
+                        "on-tertiary": "#472a00",
+                        "inverse-on-surface": "#283044",
+                        "tertiary-fixed": "#ffddb8",
+                        "error-container": "#93000a",
+                        "secondary-fixed-dim": "#4edea3",
+                        "on-tertiary-fixed": "#2a1700",
+                        "on-error": "#690005",
+                        "surface-container-lowest": "#060e20",
+                        "inverse-primary": "#4d44e3",
+                        "on-tertiary-container": "#ffd4a4",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "secondary-fixed": "#6ffbbe",
+                        "surface-dim": "#0b1326",
+                        "surface-container": "#171f33",
+                        "inverse-surface": "#dae2fd",
+                        "surface-container-highest": "#2d3449",
+                        "outline-variant": "#464555",
+                        "background": "#0b1326",
+                        "error": "#ffb4ab",
+                        "on-primary": "#1d00a5",
+                        "on-primary-fixed": "#0f0069",
+                        "on-secondary-fixed": "#002113",
+                        "on-secondary-container": "#00311f",
+                        "secondary-container": "#00a572",
+                        "on-surface-variant": "#c7c4d8",
+                        "primary-fixed": "#e2dfff",
+                        "secondary": "#4edea3",
+                        "tertiary": "#ffb95f",
+                        "primary-container": "#4f46e5",
+                        "on-background": "#dae2fd",
+                        "surface": "#0b1326",
+                        "on-secondary": "#003824",
+                        "on-secondary-fixed-variant": "#005236",
+                        "surface-container-low": "#131b2e",
+                        "outline": "#918fa1",
+                        "surface-bright": "#31394d",
+                        "on-primary-fixed-variant": "#3323cc",
+                        "surface-tint": "#c3c0ff",
+                        "primary": "#c3c0ff",
+                        "on-error-container": "#ffdad6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "fontFamily": {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-family: 'Material Symbols Outlined', fallback;
+        }
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0b1326;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #464555;
+            border-radius: 10px;
+        }
+    </style>
+  </head>
+  <body class="flex min-h-screen selection:bg-primary selection:text-on-primary overflow-x-hidden">
+    <div id="root" class="max-w-full w-full"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

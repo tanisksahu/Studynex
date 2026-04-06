@@ -1,0 +1,10 @@
+<|---- backend
+<|---- config
+<|-------- config.js
+<|---- controllers
+<|---- models
+<|---- routes
+<|---- services
+<|---- middleware
+<|---- utils
+<|---- tests

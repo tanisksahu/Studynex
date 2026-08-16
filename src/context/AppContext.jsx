@@ -1,12 +1,14 @@
-import React, { createContext, useContext, useState, useMemo } from 'react';
+import React, { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import toast from 'react-hot-toast';
+import { api } from '../services/api';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   // Global Layout State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   // Settings & Gamification
   const [settings, setSettings] = useLocalStorage('studynex-settings', {
@@ -19,31 +21,11 @@ export const AppProvider = ({ children }) => {
     avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHhQQIMYFDS_9WZQPwkM1W3IxXwjZ6FMn25e9szSYVa4DBuxa7LnkGxehfegV1xGeuAp_CC1gIXJPBXQXju8fmSuOGCJvj3wI0GjOExXlBgcXFa20LRi3Z_rs4aX2ELaelZGPvbrmAmCfgPSl7Y-JocuhRruXbfv_gUQLya1JU-GX1XOhBhtfzc_gzxdj38UmhDttlndnK-82KCvnABJ7PYbXKpHXalZiH4dluCnqlLD5XNWPMxo6h5a5dzJK8pKICGPW6-6EmMH42'
   });
 
-  const addXp = (amount) => {
-    setProfile(prev => {
-      let newXp = prev.xp + amount;
-      let newLevel = Math.floor(newXp / 200) + 1;
-      if (newLevel > prev.level) toast.success(`Leveled Up to ${newLevel}! 🎉`, { style: { background: '#333', color: '#fff' } });
-      return { ...prev, xp: newXp, level: newLevel };
-    });
-  };
-
   // NOTIFICATION SYSTEM
   const [notifications, setNotifications] = useLocalStorage('studynex-notifications', [
     { id: 1, type: 'alert', message: 'Exam for Data Structures in 30 Days', timestamp: new Date().toISOString(), read: false },
     { id: 2, type: 'ai', message: 'AI Plan Available: Finish Microeconomics Unit 3', timestamp: new Date(Date.now() - 3600000).toISOString(), read: false }
   ]);
-
-  const markNotificationRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
-  const markAllNotificationsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-    toast.success('All notifications cleared');
-  };
-  const clearNotifications = () => {
-    setNotifications([]);
-  };
 
   // CLEAN RELATIONAL SCHEMA (Subjects -> Units)
   const [rawSubjects, setRawSubjects] = useLocalStorage('studynex-v4-subjects', [
@@ -54,7 +36,6 @@ export const AppProvider = ({ children }) => {
   ]);
 
   const [units, setUnits] = useLocalStorage('studynex-v4-units', [
-    // Preload some completion states
     { subjectId: 1, unitNumber: 1, completed: true },
     { subjectId: 1, unitNumber: 2, completed: true },
     { subjectId: 1, unitNumber: 3, completed: true },
@@ -74,6 +55,83 @@ export const AppProvider = ({ children }) => {
     { subjectId: 3, retention: 64, timeSpent: 120, level: 'Beginner' },
     { subjectId: 4, retention: 71, timeSpent: 180, level: 'Intermediate' }
   ]);
+
+  const [tasks, setTasks] = useLocalStorage('studynex-tasks', [
+    { id: 1, title: 'Review System Calls (Ch 4)', time: '09:00 AM', completed: true, isLive: false, priority: true },
+    { id: 2, title: 'Mock Exam: Microeconomics', time: '11:30 AM', completed: false, isLive: true, priority: true },
+  ]);
+
+  const [materials, setMaterials] = useLocalStorage('studynex-materials', [
+    { id: 101, title: 'Midterm Outline 2026', type: 'pdf', subject: 'Data Structures', unit: 'Unit 4', topic: 'Graphs', addedAt: new Date().toISOString(), confidence: 98 },
+  ]);
+
+  const [activityData] = useState([
+    { day: 'Mon', hours: 4 }, { day: 'Tue', hours: 2.5 }, { day: 'Wed', hours: 5 }, { day: 'Thu', hours: 3 }, { day: 'Fri', hours: 6 }, { day: 'Sat', hours: 2 }, { day: 'Sun', hours: 4.5 }
+  ]);
+
+  // Sync / Migration Logic
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        const migrationVersion = localStorage.getItem('studynexMigrationVersion');
+        if (!migrationVersion) {
+          setIsMigrating(true);
+          toast.loading('Migrating data to Cloud...', { id: 'migration' });
+          await api.migrate({
+            profile, settings, notifications, subjects: rawSubjects, units, mastery: masteryData, tasks, materials
+          });
+          localStorage.setItem('studynexMigrationVersion', '1.0');
+          toast.success('Migration Complete!', { id: 'migration' });
+          setIsMigrating(false);
+        } else {
+          // Fetch from DB
+          const data = await api.getData();
+          if (data) {
+            if (data.profile) setProfile(data.profile);
+            if (data.settings) setSettings(data.settings);
+            if (data.notifications) setNotifications(data.notifications);
+            if (data.subjects) setRawSubjects(data.subjects);
+            if (data.units) setUnits(data.units);
+            if (data.mastery) setMasteryData(data.mastery);
+            if (data.tasks) setTasks(data.tasks);
+            if (data.materials) setMaterials(data.materials);
+          }
+        }
+      } catch (err) {
+        console.error('API Error (Offline mode active):', err);
+        setIsMigrating(false);
+      }
+    };
+    initApp();
+  }, []);
+
+  // Sync watchers
+  useEffect(() => { if (!isMigrating) api.updateProfile(profile).catch(console.error); }, [profile, isMigrating]);
+  useEffect(() => { if (!isMigrating) api.updateSettings(settings).catch(console.error); }, [settings, isMigrating]);
+  useEffect(() => { if (!isMigrating) api.updateNotifications(notifications).catch(console.error); }, [notifications, isMigrating]);
+  useEffect(() => { if (!isMigrating) api.updateMastery(masteryData).catch(console.error); }, [masteryData, isMigrating]);
+  useEffect(() => { if (!isMigrating) api.updateTasks(tasks).catch(console.error); }, [tasks, isMigrating]);
+  useEffect(() => { if (!isMigrating) api.updateMaterials(materials).catch(console.error); }, [materials, isMigrating]);
+
+  const addXp = (amount) => {
+    setProfile(prev => {
+      let newXp = prev.xp + amount;
+      let newLevel = Math.floor(newXp / 200) + 1;
+      if (newLevel > prev.level) toast.success(`Leveled Up to ${newLevel}! 🎉`, { style: { background: '#333', color: '#fff' } });
+      return { ...prev, xp: newXp, level: newLevel };
+    });
+  };
+
+  const markNotificationRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+  const markAllNotificationsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    toast.success('All notifications cleared');
+  };
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
 
   // Backward-Compatible Computed 'subjects' state
   const subjects = useMemo(() => {
@@ -103,15 +161,15 @@ export const AppProvider = ({ children }) => {
   };
 
   const addSubject = (newSub) => {
-    // Duplicate guard logic
     if (rawSubjects.find(s => s.code.toLowerCase() === newSub.code.toLowerCase() || s.name.toLowerCase() === newSub.name.toLowerCase())) {
        toast.error(`Course ${newSub.code} already exists!`, { style: { background: '#333', color: '#fff' }});
        return false;
     }
     const createdSubjectId = Date.now();
-    setRawSubjects(prev => [...prev, { ...newSub, id: createdSubjectId }]);
+    const finalSub = { ...newSub, id: createdSubjectId };
+    setRawSubjects(prev => [...prev, finalSub]);
+    api.addSubject(finalSub).catch(console.error);
     toast.success(`${newSub.code} successfully registered!`, { style: { background: '#222', color: '#fff' }});
-    // Units actually don't NEED pre-generation in the units array until completed, but we can seed them
     return true;
   };
 
@@ -119,32 +177,24 @@ export const AppProvider = ({ children }) => {
     setRawSubjects(prev => prev.filter(s => s.id !== subjectId));
     setUnits(prev => prev.filter(u => u.subjectId !== subjectId));
     setMasteryData(prev => prev.filter(m => m.subjectId !== subjectId));
+    api.deleteSubject(subjectId).catch(console.error);
     toast.success('Subject removed from the system.', { icon: '🗑️', style: { background: '#222', color: '#fff' } });
   };
 
   const toggleUnitCompletion = (subjectId, unitNumber) => {
+    let newUnitState = null;
     setUnits(prev => {
       const existing = prev.find(u => u.subjectId === subjectId && u.unitNumber === unitNumber);
       if (existing) {
-        return prev.map(u => u === existing ? { ...u, completed: !u.completed } : u);
+        newUnitState = { ...existing, completed: !existing.completed };
+        return prev.map(u => u === existing ? newUnitState : u);
       }
-      return [...prev, { subjectId, unitNumber, completed: true }];
+      newUnitState = { subjectId, unitNumber, completed: true };
+      return [...prev, newUnitState];
     });
+    if (newUnitState) api.updateUnit(subjectId, unitNumber, newUnitState).catch(console.error);
     addXp(50);
   };
-
-  const [tasks, setTasks] = useLocalStorage('studynex-tasks', [
-    { id: 1, title: 'Review System Calls (Ch 4)', time: '09:00 AM', completed: true, isLive: false, priority: true },
-    { id: 2, title: 'Mock Exam: Microeconomics', time: '11:30 AM', completed: false, isLive: true, priority: true },
-  ]);
-
-  const [materials, setMaterials] = useLocalStorage('studynex-materials', [
-    { id: 101, title: 'Midterm Outline 2026', type: 'pdf', subject: 'Data Structures', unit: 'Unit 4', topic: 'Graphs', addedAt: new Date().toISOString(), confidence: 98 },
-  ]);
-
-  const [activityData] = useState([
-    { day: 'Mon', hours: 4 }, { day: 'Tue', hours: 2.5 }, { day: 'Wed', hours: 5 }, { day: 'Thu', hours: 3 }, { day: 'Fri', hours: 6 }, { day: 'Sat', hours: 2 }, { day: 'Sun', hours: 4.5 }
-  ]);
 
   const addMaterial = (newMaterial) => {
     const material = {
@@ -163,7 +213,6 @@ export const AppProvider = ({ children }) => {
     toast.success('Material safely removed.', { style: { background: '#222', color: '#fff' }});
   };
 
-  // Add material directly to a subject unit (bypasses inbox)
   const addMaterialToUnit = (subjectId, unitNumber, materialData) => {
     const sub = rawSubjects.find(s => s.id === subjectId);
     const newMat = {
@@ -185,18 +234,20 @@ export const AppProvider = ({ children }) => {
     return newMat;
   };
 
-  // Update a unit's display name
   const updateUnitName = (subjectId, unitNumber, name) => {
+    let newUnitState = null;
     setUnits(prev => {
       const existing = prev.find(u => u.subjectId === subjectId && u.unitNumber === unitNumber);
       if (existing) {
-        return prev.map(u => u.subjectId === subjectId && u.unitNumber === unitNumber ? { ...u, name } : u);
+        newUnitState = { ...existing, name };
+        return prev.map(u => u.subjectId === subjectId && u.unitNumber === unitNumber ? newUnitState : u);
       }
-      return [...prev, { subjectId, unitNumber, completed: false, name }];
+      newUnitState = { subjectId, unitNumber, completed: false, name };
+      return [...prev, newUnitState];
     });
+    if (newUnitState) api.updateUnit(subjectId, unitNumber, newUnitState).catch(console.error);
   };
 
-  // Route a pending inbox material to a specific subject + unit
   const routeMaterialToUnit = (materialId, subjectId, unitNumber) => {
     const sub = rawSubjects.find(s => s.id === subjectId);
     setMaterials(prev => prev.map(m =>
@@ -207,7 +258,6 @@ export const AppProvider = ({ children }) => {
     toast.success(`Routed to ${sub?.name} — Unit ${unitNumber}`, { icon: '✅', style: { background: '#222', color: '#4edea3', border: '1px solid #4edea3' } });
   };
 
-  // Mock AI classifier — suggests subject + unit based on title keywords
   const generateAiSuggestion = (title = '', content = '') => {
     const text = (title + ' ' + content).toLowerCase();
     const subjectKeywords = [
@@ -248,7 +298,6 @@ export const AppProvider = ({ children }) => {
     toast.success(`Settings dynamically updated`, { style: { background: '#222', color: '#fff' }});
   };
 
-  // Structured AI Action Engine (Intent Matcher)
   const dispatchAiAction = (input) => {
     return new Promise((resolve) => {
       const lowerInput = input.toLowerCase();
@@ -257,7 +306,6 @@ export const AppProvider = ({ children }) => {
         proposedAction: null
       };
       
-      // Intent 1: Mark Unit Complete
       const completeMatch = lowerInput.match(/(?:mark|complete|finish).+?(?:unit|chapter)\s*(\d+)/i);
       if (completeMatch) {
          const unitNum = parseInt(completeMatch[1]);
@@ -274,7 +322,6 @@ export const AppProvider = ({ children }) => {
            response.message = `⚠️ Missing parameters. I extracted Unit ${unitNum}, but please specify the exact Subject name attached to it.`;
          }
       } 
-      // Intent 2: Generate Study Plan
       else if (lowerInput.includes('plan') || lowerInput.includes('schedule')) {
          const incompleteSubs = subjects.filter(s => s.progress < 100);
          if (incompleteSubs.length > 0) {
@@ -287,7 +334,6 @@ export const AppProvider = ({ children }) => {
            };
          }
       }
-      
       setTimeout(() => resolve(response), 1000);
     });
   };

@@ -1,13 +1,25 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors');
+const mongoose = require('mongoose');
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
 
-const app = express();
-const PORT = 5000;
+const apiRouter = require('./api');
 
-app.use(bodyParser.json());
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(bodyParser.json({ limit: '5mb' }));
+
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/studynex')
+  .then(() => console.log('MongoDB connected successfully'))
+  .catch(err => console.error('MongoDB connection error:', err));
+
+app.use('/api', apiRouter);
 
 // Test routes
 app.get('/', (req, res) => {

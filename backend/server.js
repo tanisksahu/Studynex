@@ -25,7 +25,11 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/studynex'
 
 app.use('/api', apiRouter);
 
-// Test routes
+// Health check and test routes
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.get('/', (req, res) => {
     res.send('Welcome to Studynex!');
 });

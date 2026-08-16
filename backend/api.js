@@ -261,27 +261,40 @@ router.delete('/exams/:id', async (req, res) => {
 
 // --- AI Endpoints ---
 
-router.post('/ai/extract', upload.array('documents'), async (req, res) => {
-  try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No files uploaded' });
+router.post('/ai/extract', (req, res) => {
+  upload.array('documents')(req, res, async function (err) {
+    if (err) {
+      console.error('Multer Error:', err);
+      return res.status(400).json({ success: false, errorCode: 'FILE_NOT_RECEIVED', message: err.message || 'File upload failed', retryable: true });
     }
     
-    let context = {};
-    if (req.body.context) {
-      try {
-        context = JSON.parse(req.body.context);
-      } catch (e) {
-        console.warn('Failed to parse context in /api/ai/extract:', e.message);
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, errorCode: 'EMPTY_FILE', message: 'No files uploaded', retryable: true });
       }
+      
+      // Temporary diagnostic logs
+      console.log(`[AI Extract] filename=${req.files[0].originalname}`);
+      console.log(`[AI Extract] mimetype=${req.files[0].mimetype}`);
+      console.log(`[AI Extract] size=${req.files[0].size}`);
+      console.log(`[AI Extract] buffer available=${!!req.files[0].buffer}`);
+      
+      let context = {};
+      if (req.body.context) {
+        try {
+          context = JSON.parse(req.body.context);
+        } catch (e) {
+          console.warn('Failed to parse context in /api/ai/extract:', e.message);
+        }
+      }
+      
+      const result = await extractAcademicData(req.files, context);
+      res.json(result);
+    } catch (error) {
+      console.error('AI Extract Error:', error);
+      res.status(500).json({ success: false, errorCode: 'EXTRACTION_PARSE_FAILED', message: 'Internal AI Error', retryable: true });
     }
-    
-    const result = await extractAcademicData(req.files, context);
-    res.json(result);
-  } catch (error) {
-    console.error('AI Extract Error:', error);
-    res.status(500).json({ error: 'Internal AI Error' });
-  }
+  });
 });
 
 router.post('/ai/command', async (req, res) => {

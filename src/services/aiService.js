@@ -20,7 +20,7 @@ class AIService {
    */
   async parseDocument(file) {
     const formData = new FormData();
-    formData.append('document', file);
+    formData.append('documents', file);
 
     const res = await fetch(`${API_URL}/ai/extract`, {
       method: 'POST',

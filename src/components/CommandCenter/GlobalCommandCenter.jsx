@@ -131,7 +131,8 @@ const GlobalCommandCenter = () => {
       filesArray.forEach(file => formData.append('documents', file));
       formData.append('context', JSON.stringify(context));
 
-      const response = await fetch('/api/ai/extract', {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_URL}/api/ai/extract`, {
         method: 'POST',
         headers: {
           'x-user-id': localStorage.getItem('studynex-auth-id') || 'local-user-123'
@@ -140,11 +141,16 @@ const GlobalCommandCenter = () => {
       });
       
       const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.message || 'I encountered an error trying to extract data.');
+      }
+      
       processExtractionResult(result, fileNames);
     } catch (err) {
       console.error(err);
       toast.error('Document Parsing Failed');
-      setHistory(prev => [...prev, { role: 'ai', text: 'Sorry, I encountered an error parsing the document.' }]);
+      setHistory(prev => [...prev, { role: 'ai', text: err.message || 'Sorry, I encountered an error parsing the document.' }]);
     } finally {
       setIsProcessing(false);
       setFileQueue([]);

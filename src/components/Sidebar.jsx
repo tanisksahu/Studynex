@@ -1,58 +1,87 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { motion, AnimatePresence } from 'framer-motion';
+import Logo from './Logo';
 
 const Sidebar = () => {
-  const { isMobileMenuOpen, setIsMobileMenuOpen } = useAppContext();
+  const { isMobileMenuOpen, setIsMobileMenuOpen, settings, updateSettings, setCommandCenterState } = useAppContext();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isCollapsed = settings?.layout?.sidebarCollapsed || false;
 
   const navItems = [
-    { id: 'dashboard', icon: 'dashboard', label: 'Dashboard', path: '/' },
-    { id: 'inbox', icon: 'inbox', label: 'Materials Inbox', path: '/inbox' },
-    { id: 'plan', icon: 'calendar_today', label: 'Mission Planner', path: '/plan' },
-    { id: 'exams', icon: 'school', label: 'Priority Subjects', path: '/exams' },
-    { id: 'analytics', icon: 'monitoring', label: 'Mastery Engine', path: '/analytics' },
+    { id: 'dashboard', icon: 'dashboard', label: 'Overview', path: '/' },
+    { id: 'subjects', icon: 'auto_stories', label: 'Subjects', path: '/subjects' },
+    { id: 'inbox', icon: 'inbox', label: 'Materials', path: '/inbox' },
+    { id: 'plan', icon: 'check_circle', label: 'Planner', path: '/plan' },
+    { id: 'exams', icon: 'calendar_month', label: 'Exams', path: '/exams' },
+    { id: 'analytics', icon: 'monitoring', label: 'Progress', path: '/analytics' },
   ];
 
-  const sidebarContent = (
-    <>
-      <div className="p-6 flex items-center gap-3 relative z-10 border-b border-outline-variant/10">
-        <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.5)]">
-          <span className="material-symbols-outlined text-white text-xl">school</span>
+  const toggleSidebar = () => {
+    updateSettings('layout', 'sidebarCollapsed', !isCollapsed);
+  };
+
+  const toggleCommandCenter = () => {
+    setCommandCenterState('panel');
+  };
+
+  return (
+    <aside className={`hidden lg:flex bg-surface border-r border-outline-variant fixed top-0 left-0 bottom-0 flex-col z-40 transition-all duration-300 ${isCollapsed ? 'w-20' : 'w-64'}`}>
+      <div className={`h-16 flex items-center border-b border-outline-variant px-5 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+        <div className="flex items-center gap-3 overflow-hidden">
+          <Logo className="w-8 h-8 shrink-0" />
+          {!isCollapsed && <h1 className="text-xl font-bold text-on-surface tracking-tight whitespace-nowrap">StudyNex</h1>}
         </div>
-        <h1 className="text-xl font-headline font-black tracking-widest text-[#e2e8f0]">STUDYNEX</h1>
-        
-        {/* Mobile Close Button */}
-        <button 
-          className="lg:hidden ml-auto text-on-surface-variant hover:text-white"
-          onClick={() => setIsMobileMenuOpen(false)}
-        >
-          <span className="material-symbols-outlined">close</span>
-        </button>
+        {!isCollapsed && (
+          <button onClick={toggleSidebar} className="text-on-surface-variant hover:text-on-surface p-1 rounded-md hover:bg-surface-variant transition-colors">
+            <span className="material-symbols-outlined text-[20px]">keyboard_double_arrow_left</span>
+          </button>
+        )}
       </div>
       
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 relative z-10">
-        <p className="text-[0.65rem] font-bold text-on-surface-variant uppercase tracking-widest mb-4">Core Systems</p>
-        <nav className="space-y-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+        {isCollapsed && (
+          <button onClick={toggleSidebar} className="w-full mb-4 flex justify-center text-on-surface-variant hover:text-on-surface p-2 rounded-lg hover:bg-surface-variant transition-colors">
+            <span className="material-symbols-outlined text-[20px]">keyboard_double_arrow_right</span>
+          </button>
+        )}
+        
+        <nav className="space-y-1">
+          <button
+            onClick={toggleCommandCenter}
+            className={`
+              group relative flex w-full items-center ${isCollapsed ? 'justify-center' : 'gap-3'} px-3 py-2.5 my-1 rounded-lg font-medium transition-all duration-200
+              text-on-surface-variant hover:bg-surface-variant hover:text-on-surface
+            `}
+            title={isCollapsed ? "Command Center" : undefined}
+          >
+            <span className={`material-symbols-outlined text-[20px] transition-transform duration-200 group-hover:scale-110`}>terminal</span>
+            
+            {!isCollapsed && (
+              <span className="text-sm">Command Center</span>
+            )}
+          </button>
+
           {navItems.map((item) => (
             <NavLink
               key={item.id}
               to={item.path}
-              onClick={() => setIsMobileMenuOpen(false)}
+              title={isCollapsed ? item.label : undefined}
               className={({ isActive }) => 
-                `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 font-bold group border ${
+                `flex items-center ${isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'} py-2.5 rounded-lg transition-colors font-medium text-sm ${
                   isActive 
-                    ? 'bg-primary/20 text-primary border-primary/30 shadow-[inset_0_0_20px_rgba(79,70,229,0.15)] shadow-[0_0_15px_rgba(79,70,229,0.1)]' 
-                    : 'text-on-surface-variant border-transparent hover:bg-surface-container hover:text-white hover:border-outline-variant/20'
+                    ? 'bg-primary-container text-on-primary-container' 
+                    : 'text-on-surface hover:bg-surface-variant'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <span className={`material-symbols-outlined transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-[0_0_5px_rgba(195,192,255,0.6)]' : 'group-hover:scale-110'}`}>
+                  <span className={`material-symbols-outlined text-[20px] ${isActive ? 'text-on-primary-container' : 'text-on-surface-variant'}`}>
                     {item.icon}
                   </span>
-                  <span className="text-sm tracking-wide">{item.label}</span>
+                  {!isCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
                 </>
               )}
             </NavLink>
@@ -60,73 +89,38 @@ const Sidebar = () => {
         </nav>
       </div>
 
-      <div className="p-6 border-t border-outline-variant/10 relative z-10 space-y-2">
+      <div className={`p-4 border-t border-outline-variant space-y-1 ${isCollapsed ? 'flex flex-col items-center' : ''}`}>
         <NavLink 
-          to="/profile" 
-          onClick={() => setIsMobileMenuOpen(false)}
+          to="/profile"
+          title={isCollapsed ? 'Profile' : undefined}
           className={({ isActive }) => 
-            `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 font-bold group border ${
+            `flex items-center ${isCollapsed ? 'justify-center px-0 w-10 h-10' : 'gap-3 px-3'} py-2.5 rounded-lg transition-colors font-medium text-sm ${
               isActive 
-                ? 'bg-primary/20 text-primary border-primary/30 shadow-[inset_0_0_20px_rgba(79,70,229,0.15)]' 
-                : 'text-on-surface-variant border-transparent hover:bg-surface-container hover:text-white hover:border-outline-variant/20'
+                ? 'bg-primary-container text-on-primary-container' 
+                : 'text-on-surface hover:bg-surface-variant'
             }`
         }>
-          <span className="material-symbols-outlined">person</span>
-          <span className="text-sm tracking-wide">Scholar Identity</span>
+          <span className="material-symbols-outlined text-[20px]">person</span>
+          {!isCollapsed && <span>Profile</span>}
         </NavLink>
         
         <NavLink 
-          to="/settings" 
-          onClick={() => setIsMobileMenuOpen(false)}
+          to="/settings"
+          title={isCollapsed ? 'Settings' : undefined}
           className={({ isActive }) => 
-            `flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 font-bold group border ${
+            `flex items-center ${isCollapsed ? 'justify-center px-0 w-10 h-10' : 'gap-3 px-3'} py-2.5 rounded-lg transition-colors font-medium text-sm ${
               isActive 
-                ? 'bg-primary/20 text-primary border-primary/30 shadow-[inset_0_0_20px_rgba(79,70,229,0.15)]' 
-                : 'text-on-surface-variant border-transparent hover:bg-surface-container hover:text-white hover:border-outline-variant/20'
+                ? 'bg-primary-container text-on-primary-container' 
+                : 'text-on-surface hover:bg-surface-variant'
             }`
         }>
-          <span className="material-symbols-outlined">tune</span>
-          <span className="text-sm tracking-wide">System Settings</span>
+          <span className="material-symbols-outlined text-[20px]">tune</span>
+          {!isCollapsed && <span>Settings</span>}
         </NavLink>
       </div>
-      
-      {/* Abstract Background Blur inside Sidebar */}
-      <div className="absolute bottom-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] pointer-events-none z-0"></div>
-    </>
-  );
-
-  return (
-    <>
-      {/* Desktop Persistent Sidebar */}
-      <aside className="hidden lg:flex w-64 bg-surface-container-low border-r border-outline-variant/10 fixed top-0 left-0 bottom-0 flex-col neo-glass shadow-2xl z-40 overflow-hidden">
-         {sidebarContent}
-      </aside>
-
-      {/* Mobile Drawer Overlay */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="fixed inset-0 bg-[#0b1326]/80 backdrop-blur-sm z-[90] lg:hidden"
-          >
-             <motion.aside
-               initial={{ x: '-100%' }}
-               animate={{ x: 0 }}
-               exit={{ x: '-100%' }}
-               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-               onClick={(e) => e.stopPropagation()}
-               className="w-72 bg-surface-container-low border-r border-outline-variant/20 h-full flex flex-col neo-glass shadow-[20px_0_50px_rgba(0,0,0,0.5)] z-[100] relative overflow-hidden"
-             >
-                {sidebarContent}
-             </motion.aside>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+    </aside>
   );
 };
 
 export default Sidebar;
+

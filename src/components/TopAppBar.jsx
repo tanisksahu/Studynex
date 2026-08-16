@@ -1,105 +1,129 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const TopAppBar = () => {
   const location = useLocation();
-  const { profile, setIsMobileMenuOpen, notifications, markNotificationRead, markAllNotificationsRead, clearNotifications } = useAppContext();
+  const navigate = useNavigate();
+  const { profile, notifications, markNotificationRead, markAllNotificationsRead, clearNotifications, isSearchOpen, setIsSearchOpen } = useAppContext();
+  
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const notifRef = useRef(null);
+  const profileRef = useRef(null);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (notifRef.current && !notifRef.current.contains(event.target)) {
-        setShowNotifications(false);
-      }
+      if (notifRef.current && !notifRef.current.contains(event.target)) setShowNotifications(false);
+      if (profileRef.current && !profileRef.current.contains(event.target)) setShowProfileMenu(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Keyboard shortcut for search
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const getPageTitle = () => {
     switch (location.pathname) {
-      case '/': return 'Dashboard Overview';
-      case '/inbox': return 'Materials Intelligence';
-      case '/plan': return 'Mission Planning';
-      case '/exams': return 'Priority Focus';
-      case '/analytics': return 'Mastery Engine';
-      case '/profile': return 'Scholar Identity';
-      case '/settings': return 'System Settings';
-      default: return 'Studynex';
+      case '/': return 'Dashboard';
+      case '/inbox': return 'Materials';
+      case '/plan': return 'Planner';
+      case '/exams': return 'Subjects';
+      case '/analytics': return 'Analytics';
+      case '/profile': return 'Profile';
+      case '/settings': return 'Settings';
+      default: return 'StudyNex';
     }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <header className="h-20 bg-surface-container-low/80 backdrop-blur-xl border-b border-outline-variant/10 flex items-center justify-between px-6 lg:px-10 sticky top-0 z-30 shadow-sm neo-glass rounded-none w-full border-t-0 border-l-0 border-r-0">
+    <header className="h-16 bg-white border-b border-outline-variant flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 transition-all w-full">
       
       <div className="flex items-center gap-4">
-        {/* Mobile Hamburger Toggle */}
-        <button 
-          onClick={() => setIsMobileMenuOpen(true)}
-          className="lg:hidden w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center border border-outline-variant/20 hover:border-primary/50 text-white transition-all shadow-md active:scale-95"
-        >
-          <span className="material-symbols-outlined">menu</span>
-        </button>
-
-        <div>
-          <h2 className="text-xl font-headline font-black tracking-widest text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.1)]">{getPageTitle()}</h2>
-          <p className="text-[0.65rem] font-bold text-primary tracking-widest uppercase">Sync <span className="material-symbols-outlined text-[10px] animate-pulse">wifi_tethering</span> Active</p>
-        </div>
+        <h2 className="text-xl font-semibold text-on-surface tracking-tight hidden lg:block">{getPageTitle()}</h2>
+        {/* Mobile Page Title */}
+        <h2 className="text-lg font-bold text-on-surface tracking-tight lg:hidden">{getPageTitle()}</h2>
       </div>
 
-      <div className="flex items-center gap-3 md:gap-5">
+      <div className="flex flex-1 max-w-md mx-4 lg:mx-8 items-center">
+         <button onClick={() => setIsSearchOpen(true)} className="w-full flex items-center justify-between bg-surface-variant hover:bg-[#EAEAE5] border border-outline-variant rounded-lg px-3 py-2 transition-colors group">
+            <div className="flex items-center gap-2 text-on-surface-variant group-hover:text-on-surface">
+               <span className="material-symbols-outlined text-[18px]">search</span>
+               <span className="text-sm font-medium">Search StudyNex...</span>
+            </div>
+            <kbd className="hidden lg:flex items-center gap-1 font-sans text-[10px] font-semibold text-on-surface-variant bg-white border border-outline-variant px-1.5 py-0.5 rounded opacity-70">
+               <span className="text-[12px]">⌘</span> K
+            </kbd>
+         </button>
+      </div>
+
+      <div className="flex items-center gap-2 lg:gap-4">
         
+        {/* Calendar Shortcut */}
+        <button 
+          onClick={() => navigate('/plan')}
+          className="hidden md:flex w-9 h-9 rounded-md items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors"
+          title="Planner"
+        >
+          <span className="material-symbols-outlined text-[20px]">calendar_today</span>
+        </button>
+
         {/* Notification Bell & Dropdown */}
         <div className="relative" ref={notifRef}>
-          <motion.button 
+          <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            whileHover={{ scale: 1.05 }} 
-            whileTap={{ scale: 0.95 }}
-            className="relative w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-outline-variant/20 hover:border-secondary/50 text-white transition-all shadow-md group"
+            className={`relative w-9 h-9 rounded-md flex items-center justify-center transition-colors ${showNotifications ? 'bg-surface-variant text-on-surface' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'}`}
           >
-            <span className="material-symbols-outlined text-xl group-hover:text-secondary transition-colors">notifications</span>
-            {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full shadow-[0_0_8px_rgba(255,92,92,0.8)] animate-pulse"></span>}
-          </motion.button>
+            <span className="material-symbols-outlined text-[20px]">notifications</span>
+            {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>}
+          </button>
           
-          {/* Transparent click catcher not needed due to ref logic */}
           <AnimatePresence>
              {showNotifications && (
                <motion.div 
-                 initial={{ opacity: 0, y: 15, scale: 0.95 }}
+                 initial={{ opacity: 0, y: 5, scale: 0.98 }}
                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                 className="absolute right-0 top-14 w-80 bg-surface-container-high/95 backdrop-blur-xl border border-outline-variant/20 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden z-[100]"
+                 exit={{ opacity: 0, y: 5, scale: 0.98 }}
+                 transition={{ duration: 0.15 }}
+                 className="absolute right-0 top-12 w-80 bg-white border border-outline-variant rounded-xl shadow-elevated overflow-hidden z-[100]"
                >
-                 <div className="p-4 border-b border-outline-variant/10 flex justify-between items-center bg-[#0b1326]/50">
-                    <h4 className="font-bold text-sm text-white">System Logs</h4>
-                    <div className="flex gap-2">
-                       <button onClick={markAllNotificationsRead} className="text-[0.65rem] font-bold text-primary hover:text-indigo-300 uppercase tracking-widest">Mark Valid</button>
-                       <span className="text-on-surface-variant text-[0.65rem]">|</span>
-                       <button onClick={clearNotifications} className="text-[0.65rem] font-bold text-error hover:text-red-300 uppercase tracking-widest">Wipe</button>
+                 <div className="p-3 border-b border-outline-variant flex justify-between items-center bg-surface">
+                    <h4 className="font-semibold text-sm text-on-surface">Notifications</h4>
+                    <div className="flex gap-3">
+                       <button onClick={markAllNotificationsRead} className="text-xs font-medium text-primary hover:text-on-primary-container">Mark all read</button>
+                       <button onClick={clearNotifications} className="text-xs font-medium text-on-surface-variant hover:text-error">Clear</button>
                     </div>
                  </div>
                  
-                 <div className="max-h-80 overflow-y-auto scrollbar-none p-2 space-y-1">
+                 <div className="max-h-80 overflow-y-auto custom-scrollbar p-2 space-y-1">
                     {notifications.length === 0 ? (
                        <div className="text-center p-6 text-on-surface-variant">
-                          <span className="material-symbols-outlined text-3xl mb-2 opacity-50">notifications_off</span>
-                          <p className="text-xs">No active logs</p>
+                          <span className="material-symbols-outlined text-2xl mb-1 opacity-50">notifications_off</span>
+                          <p className="text-sm">No new notifications</p>
                        </div>
                     ) : (
                        notifications.map(n => (
-                          <div key={n.id} onClick={() => markNotificationRead(n.id)} className={`p-3 rounded-xl flex gap-3 cursor-pointer transition-colors ${n.read ? 'opacity-60 hover:bg-surface-container' : 'bg-primary/10 border border-primary/20 hover:bg-primary/20'}`}>
-                             <span className={`material-symbols-outlined text-lg mt-0.5 ${n.type === 'alert' ? 'text-error' : 'text-primary'}`}>
+                          <div key={n.id} onClick={() => markNotificationRead(n.id)} className={`p-3 rounded-lg flex gap-3 cursor-pointer transition-colors ${n.read ? 'opacity-60 hover:bg-surface-variant' : 'bg-primary-container hover:bg-primary/10'}`}>
+                             <span className={`material-symbols-outlined text-[18px] mt-0.5 ${n.type === 'alert' ? 'text-error' : 'text-primary'}`}>
                                {n.type === 'alert' ? 'warning' : 'auto_awesome'}
                              </span>
                              <div>
-                                <p className="text-sm text-white leading-snug">{n.message}</p>
-                                <p className="text-[0.6rem] text-on-surface-variant font-bold tracking-widest uppercase mt-1">
+                                <p className="text-sm text-on-surface leading-tight font-medium">{n.message}</p>
+                                <p className="text-xs text-on-surface-variant mt-1">
                                   {new Date(n.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 </p>
                              </div>
@@ -113,16 +137,53 @@ const TopAppBar = () => {
           </AnimatePresence>
         </div>
         
-        <div className="h-8 w-px bg-outline-variant/30 hidden md:block"></div>
+        <div className="h-5 w-px bg-outline-variant hidden md:block mx-1"></div>
         
-        <div className="flex items-center gap-3 bg-surface-container-high px-2 py-1.5 md:px-4 md:py-2 rounded-full border border-outline-variant/10 shadow-inner cursor-pointer hover:bg-surface-container-highest transition-colors group">
-          <div className="hidden md:flex flex-col items-end">
-             <span className="font-bold text-xs text-white">{profile.firstName}</span>
-             <span className="text-[0.55rem] font-black uppercase tracking-widest text-[#4edea3]">Lvm {profile.level}</span>
-          </div>
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-primary/50 overflow-hidden group-hover:border-primary transition-colors shadow-[0_0_10px_rgba(79,70,229,0.3)] shrink-0">
-            <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
-          </div>
+        {/* Profile Avatar & Menu */}
+        <div className="relative" ref={profileRef}>
+          <button 
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="flex items-center gap-2 group p-1 pr-2 rounded-md hover:bg-surface-variant transition-colors"
+          >
+            <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant group-hover:border-primary transition-colors shrink-0">
+              <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
+            </div>
+            <span className="hidden lg:block text-sm font-medium text-on-surface">{profile.firstName}</span>
+            <span className="hidden lg:block material-symbols-outlined text-[18px] text-on-surface-variant">expand_more</span>
+          </button>
+
+          <AnimatePresence>
+             {showProfileMenu && (
+               <motion.div 
+                 initial={{ opacity: 0, y: 5, scale: 0.98 }}
+                 animate={{ opacity: 1, y: 0, scale: 1 }}
+                 exit={{ opacity: 0, y: 5, scale: 0.98 }}
+                 transition={{ duration: 0.15 }}
+                 className="absolute right-0 top-12 w-56 bg-white border border-outline-variant rounded-xl shadow-elevated overflow-hidden z-[100]"
+               >
+                 <div className="p-4 border-b border-outline-variant">
+                    <p className="text-sm font-semibold text-on-surface truncate">{profile.firstName} {profile.lastName}</p>
+                    <p className="text-xs text-on-surface-variant truncate">{profile.email}</p>
+                 </div>
+                 <div className="p-2 space-y-1">
+                    <button onClick={() => { navigate('/profile'); setShowProfileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-variant rounded-lg transition-colors">
+                      <span className="material-symbols-outlined text-[18px] text-on-surface-variant">person</span>
+                      Your Profile
+                    </button>
+                    <button onClick={() => { navigate('/settings'); setShowProfileMenu(false); }} className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-on-surface hover:bg-surface-variant rounded-lg transition-colors">
+                      <span className="material-symbols-outlined text-[18px] text-on-surface-variant">tune</span>
+                      Settings
+                    </button>
+                 </div>
+                 <div className="p-2 border-t border-outline-variant">
+                    <button className="w-full flex items-center gap-3 px-3 py-2 text-sm font-medium text-error hover:bg-error/10 rounded-lg transition-colors">
+                      <span className="material-symbols-outlined text-[18px]">logout</span>
+                      Log out
+                    </button>
+                 </div>
+               </motion.div>
+             )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -131,3 +192,4 @@ const TopAppBar = () => {
 };
 
 export default TopAppBar;
+

@@ -10,7 +10,7 @@ const Progress = () => {
   const averageProgress = useMemo(() => subjects.length ? Math.round(subjects.reduce((acc, sub) => acc + sub.progress, 0) / subjects.length) : 0, [subjects]);
 
   const handleFixPlan = (subName) => {
-    toast.success(`Generated Revision Plan for ${subName}!`, { icon: '🤖', style: { background: '#222', color: '#fff' }});
+    toast.success(`Generated Revision Plan for ${subName}!`);
     setTasks(prev => [
       ...prev,
       { id: Date.now(), title: `AI Re-Review: ${subName}`, time: 'Scheduled', completed: false, isLive: false, priority: true }
@@ -22,101 +22,119 @@ const Progress = () => {
     show: { opacity: 1, transition: { staggerChildren: 0.1 } }
   };
   const itemLoader = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0, y: 15 },
     show: { opacity: 1, y: 0, transition: { type: 'spring' } }
   };
 
   return (
-    <main className="p-10 text-on-surface">
-      <motion.div variants={containerLoader} initial="hidden" animate="show" className="space-y-8">
+    <main className="p-4 lg:p-10 text-on-surface">
+      <motion.div variants={containerLoader} initial="hidden" animate="show" className="space-y-8 max-w-7xl mx-auto">
         
         {/* Header Cards */}
-        <motion.div variants={itemLoader} className="flex flex-wrap gap-6 items-center bg-gradient-to-r from-surface-container-high to-surface-container p-10 rounded-3xl border border-outline-variant/10 shadow-2xl relative overflow-hidden">
+        <motion.div variants={itemLoader} className="sn-card p-6 lg:p-10 border-t-4 border-primary relative overflow-hidden bg-white shadow-elevated">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+          
           <div className="relative z-10 w-full flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
-              <h2 className="font-headline text-3xl font-black uppercase tracking-wider flex items-center mb-1">
-                <span className="material-symbols-outlined mr-4 text-indigo-500 text-4xl">neurology</span>
+              <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-on-surface mb-2 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 border border-primary/20">
+                  <span className="material-symbols-outlined text-[24px]">neurology</span>
+                </div>
                 Mastery Engine
-              </h2>
-              <p className="text-on-surface-variant text-sm font-medium">Real-time quantification of your academic preparedness across all indexed materials.</p>
+              </h1>
+              <p className="text-on-surface-variant font-medium text-sm lg:text-base pl-14">Real-time quantification of your academic preparedness across all indexed materials.</p>
             </div>
             
-            <div className="bg-surface-container-highest p-4 rounded-2xl border border-outline-variant/10 flex items-center gap-6 shadow-inner relative overflow-hidden">
+            <div className="bg-surface/50 p-5 rounded-2xl border border-outline-variant flex items-center gap-8 shadow-inner-soft relative overflow-hidden shrink-0">
                <div className="text-center relative z-10">
-                 <span className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1">Global Mastery</span>
-                 <span className="font-headline text-4xl font-black text-primary">{averageProgress}%</span>
+                 <span className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Global Mastery</span>
+                 <span className="text-3xl font-bold text-primary">{averageProgress}%</span>
                </div>
-               <div className="h-10 w-[1px] bg-outline-variant/20 relative z-10"></div>
+               <div className="h-12 w-[2px] bg-outline-variant/60 relative z-10"></div>
                <div className="text-center relative z-10">
-                 <span className="block text-xs font-bold text-on-surface-variant uppercase tracking-widest mb-1">Materials</span>
-                 <span className="font-headline text-4xl font-black text-secondary">{materials.length}</span>
+                 <span className="block text-[11px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Materials</span>
+                 <span className="text-3xl font-bold text-secondary">{materials.length}</span>
                </div>
-               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent animate-[shimmer_3s_infinite]"></div>
             </div>
           </div>
-          <div className="absolute left-1/4 top-[-50%] w-96 h-96 bg-indigo-500/10 rounded-full blur-[80px] pointer-events-none"></div>
         </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column: Subject Analytics Cards */}
           <div className="lg:col-span-2 space-y-6">
-            <motion.h3 variants={itemLoader} className="font-headline text-xl font-bold uppercase tracking-widest flex items-center pl-2">
-               <span className="material-symbols-outlined mr-3 text-secondary">donut_large</span> Subject Breakdown
+            <motion.h3 variants={itemLoader} className="text-lg font-bold text-on-surface flex items-center gap-2 border-b border-outline-variant pb-4">
+               <span className="material-symbols-outlined text-[20px] text-secondary">donut_large</span> Subject Breakdown
             </motion.h3>
             <motion.div variants={itemLoader} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {subjects.map((sub, i) => {
                 const colors = ['primary', 'secondary', 'error', 'tertiary'];
                 const color = sub.weak ? 'error' : colors[i % colors.length];
+                
+                // Color mapping for explicit classes since dynamic classes can be purged by tailwind
+                const bgColors = {
+                  primary: 'bg-primary', secondary: 'bg-secondary', error: 'bg-error', tertiary: 'bg-tertiary'
+                };
+                const bgLightColors = {
+                  primary: 'bg-primary/10', secondary: 'bg-secondary/10', error: 'bg-error/10', tertiary: 'bg-tertiary/10'
+                };
+                const borderColors = {
+                  primary: 'border-primary/20', secondary: 'border-secondary/20', error: 'border-error/20', tertiary: 'border-tertiary/20'
+                };
+                const textColors = {
+                  primary: 'text-primary', secondary: 'text-secondary', error: 'text-error', tertiary: 'text-primary'
+                };
+                const strokeColors = {
+                  primary: 'stroke-primary', secondary: 'stroke-secondary', error: 'stroke-error', tertiary: 'stroke-tertiary'
+                };
 
                 return (
-                  <div key={sub.id} className={`bg-surface-container p-6 rounded-3xl border transition-transform hover:-translate-y-1 hover:shadow-2xl group ${sub.weak ? 'border-error/30 shadow-error/10 hover:shadow-error/20' : 'border-outline-variant/10 hover:border-primary/30'} relative overflow-hidden`}>
+                  <div key={sub.id} className={`bg-white p-6 sm:p-7 rounded-2xl border transition-all hover:-translate-y-1 group ${sub.weak ? 'border-error/30 shadow-[0_4px_20px_rgba(255,82,82,0.1)] hover:shadow-[0_8px_30px_rgba(255,82,82,0.15)]' : 'border-outline-variant shadow-sm hover:border-primary/30 hover:shadow-soft'} relative overflow-hidden flex flex-col`}>
                     <div className="flex justify-between items-start mb-6 relative z-10">
-                      <h3 className="font-headline font-black text-xl w-3/4 leading-tight">{sub.name}</h3>
-                      <span className={`text-[0.60rem] font-black uppercase tracking-widest whitespace-nowrap bg-${color}/10 px-2 py-1 flex items-center gap-1 rounded text-${color}`}>
-                        {sub.weak ? <><span className="material-symbols-outlined text-[12px]">warning</span> At Risk</> : <><span className="material-symbols-outlined text-[12px]">verified</span> Strong</>}
+                      <h3 className="font-bold text-lg w-3/4 leading-tight text-on-surface">{sub.name}</h3>
+                      <span className={`text-[10px] font-bold uppercase tracking-wider whitespace-nowrap ${bgLightColors[color]} border ${borderColors[color]} px-2 py-1 flex items-center gap-1 rounded ${textColors[color]}`}>
+                        {sub.weak ? <><span className="material-symbols-outlined text-[14px]">warning</span> At Risk</> : <><span className="material-symbols-outlined text-[14px]">verified</span> Strong</>}
                       </span>
                     </div>
                     
-                    <div className="relative w-36 h-36 mx-auto mb-6 flex items-center justify-center group/svg relative z-10">
-                      <svg className="w-full h-full transform -rotate-90 group-hover/svg:scale-105 transition-transform duration-500" viewBox="0 0 100 100">
-                        <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-surface-container-highest" strokeWidth="8" />
+                    <div className="relative w-36 h-36 mx-auto mb-8 flex items-center justify-center group/svg relative z-10">
+                      <svg className="w-full h-full transform -rotate-90 transition-transform duration-500 drop-shadow-sm" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="40" fill="transparent" className="stroke-surface-variant/50" strokeWidth="6" />
                         <circle cx="50" cy="50" r="40" fill="transparent" 
-                                className={`stroke-${color} transition-all duration-1500 ease-out`} strokeWidth="8" 
+                                className={`${strokeColors[color]} transition-all duration-1500 ease-out`} strokeWidth="6" 
                                 strokeDasharray="251.2" strokeDashoffset={251.2 - (251.2 * sub.progress) / 100} 
                                 strokeLinecap="round" />
                       </svg>
                       <div className="absolute text-center flex flex-col items-center">
-                        <span className={`text-3xl font-headline font-black text-${color}`}>{sub.progress}%</span>
-                        <span className="text-[0.6rem] font-bold text-on-surface-variant uppercase tracking-widest -mt-1">Syllabus</span>
+                        <span className={`text-3xl font-bold tracking-tight ${textColors[color]}`}>{sub.progress}%</span>
+                        <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mt-0.5">Syllabus</span>
                       </div>
                     </div>
                     
-                    <div className="text-center relative z-10 space-y-4">
-                       <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-surface-container-highest p-2 rounded-xl border border-outline-variant/10">
-                             <span className="block text-[0.5rem] font-bold text-on-surface-variant uppercase">Retention</span>
-                             <span className={`text-sm font-black ${sub.retention > 80 ? 'text-[#4edea3]' : sub.retention > 60 ? 'text-primary' : 'text-error'}`}>{sub.retention}%</span>
+                    <div className="mt-auto text-center relative z-10 space-y-4">
+                       <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-surface-variant/30 p-3 rounded-xl border border-outline-variant/50 text-center">
+                             <span className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Retention</span>
+                             <span className={`text-base font-bold ${sub.retention > 80 ? 'text-primary' : sub.retention > 60 ? 'text-secondary' : 'text-error'}`}>{sub.retention}%</span>
                           </div>
-                          <div className="bg-surface-container-highest p-2 rounded-xl border border-outline-variant/10">
-                             <span className="block text-[0.5rem] font-bold text-on-surface-variant uppercase">Time In</span>
-                             <span className="text-sm font-black text-white">{sub.timeSpent}m</span>
+                          <div className="bg-surface-variant/30 p-3 rounded-xl border border-outline-variant/50 text-center">
+                             <span className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-wider mb-1">Time In</span>
+                             <span className="text-base font-bold text-on-surface">{sub.timeSpent}m</span>
                           </div>
                        </div>
 
                       {sub.weak ? (
                         <>
-                          <p className="text-[0.6rem] text-error font-bold uppercase tracking-widest bg-error/5 border border-error/10 p-2 rounded-lg">High Probability of Knowledge Decay</p>
-                          <button onClick={() => handleFixPlan(sub.name)} className="w-full py-2 bg-error/10 hover:bg-error text-error hover:text-[#0b1326] transition-colors border border-error/20 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2">
-                             <span className="material-symbols-outlined text-[16px]">bolt</span> Boost Retention
+                          <button onClick={() => handleFixPlan(sub.name)} className="w-full py-3 bg-error hover:bg-error/90 text-white transition-colors rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-soft mt-2">
+                             <span className="material-symbols-outlined text-[20px]">bolt</span> Boost Retention
                           </button>
                         </>
                       ) : (
-                        <p className="text-[0.6rem] text-primary font-bold uppercase tracking-widest bg-primary/5 border border-primary/10 p-2 rounded-lg flex items-center justify-center gap-2">
-                          <span className="material-symbols-outlined text-[14px]">psychology</span> Optimized State
-                        </p>
+                        <div className="py-3 bg-primary/5 border border-primary/10 rounded-xl flex items-center justify-center gap-2 mt-2">
+                          <span className="material-symbols-outlined text-[18px] text-primary">psychology</span>
+                          <span className="text-[11px] text-primary font-bold uppercase tracking-wider">Optimized State</span>
+                        </div>
                       )}
                     </div>
-                    {sub.weak && <div className="absolute bottom-[-20%] left-[-20%] w-48 h-48 bg-error/10 rounded-full blur-[60px] pointer-events-none group-hover:bg-error/20 transition-all"></div>}
                   </div>
                 )
               })}
@@ -125,54 +143,54 @@ const Progress = () => {
 
           {/* Right Column: AI Insights & Radar */}
           <div className="space-y-6">
-            <motion.h3 variants={itemLoader} className="font-headline text-xl font-bold uppercase tracking-widest flex items-center pl-2">
-               <span className="material-symbols-outlined mr-3 text-tertiary">psychology</span> AI Insights
+            <motion.h3 variants={itemLoader} className="text-lg font-bold text-on-surface flex items-center gap-2 border-b border-outline-variant pb-4">
+               <span className="material-symbols-outlined text-[20px] text-primary">psychology</span> AI Insights
             </motion.h3>
             
-            <motion.div variants={itemLoader} className="bg-surface-container p-6 rounded-3xl border border-outline-variant/10 shadow-xl relative overflow-hidden backdrop-blur-md">
-               <div className="absolute top-[-2%] right-[-2%] p-4 opacity-5">
-                 <span className="material-symbols-outlined text-9xl text-primary animate-pulse">auto_awesome</span>
+            <motion.div variants={itemLoader} className="sn-card p-6 border-t-4 border-primary shadow-elevated relative overflow-hidden bg-white">
+               <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                 <span className="material-symbols-outlined text-[140px] text-primary">auto_awesome</span>
                </div>
                
                <ul className="space-y-4 relative z-10">
-                 <li className="flex gap-4 items-start bg-error/5 p-4 rounded-2xl border border-error/10 shadow-lg shadow-error/5 hover:-translate-y-1 transition-transform cursor-pointer">
-                   <div className="bg-error/20 p-2 rounded-lg">
-                     <span className="material-symbols-outlined text-error text-xl shrink-0">psychology_alt</span>
+                 <li className="flex gap-4 items-start bg-white p-5 rounded-xl border border-outline-variant shadow-sm hover:-translate-y-1 hover:shadow-soft transition-all cursor-pointer group">
+                   <div className="bg-error/10 border border-error/20 p-2.5 rounded-lg shrink-0 group-hover:bg-error/20 transition-colors">
+                     <span className="material-symbols-outlined text-error text-[22px]">psychology_alt</span>
                    </div>
-                   <div>
-                     <div className="flex justify-between items-start">
-                       <h4 className="font-bold text-sm text-error mb-1">Forgetting Curve Alert</h4>
-                       <span className="text-[0.55rem] font-black uppercase text-error bg-error/10 px-1.5 py-0.5 rounded">High Prio</span>
+                   <div className="pt-0.5">
+                     <div className="flex justify-between items-start mb-2">
+                       <h4 className="font-bold text-sm text-error">Forgetting Curve Alert</h4>
+                       <span className="text-[9px] font-bold uppercase tracking-wider text-error bg-error/10 border border-error/20 px-2 py-0.5 rounded">High Prio</span>
                      </div>
-                     <p className="text-xs text-on-surface-variant leading-relaxed">
-                       You haven't reviewed <strong className="text-white">Linear Algebra Unit 1</strong> in 14 days. Retention is dropping below 60%.
+                     <p className="text-[13px] font-medium text-on-surface-variant leading-relaxed">
+                       You haven't reviewed <strong className="text-on-surface font-bold">Linear Algebra Unit 1</strong> in 14 days. Retention is dropping below 60%.
                      </p>
                    </div>
                  </li>
 
-                 <li className="flex gap-4 items-start bg-primary/5 p-4 rounded-2xl border border-primary/10 shadow-lg shadow-primary/5 hover:-translate-y-1 transition-transform cursor-pointer">
-                   <div className="bg-primary/20 p-2 rounded-lg">
-                     <span className="material-symbols-outlined text-primary text-xl shrink-0">quiz</span>
+                 <li className="flex gap-4 items-start bg-white p-5 rounded-xl border border-outline-variant shadow-sm hover:-translate-y-1 hover:shadow-soft transition-all cursor-pointer group">
+                   <div className="bg-primary/10 border border-primary/20 p-2.5 rounded-lg shrink-0 group-hover:bg-primary/20 transition-colors">
+                     <span className="material-symbols-outlined text-primary text-[22px]">quiz</span>
                    </div>
-                   <div>
-                     <div className="flex justify-between items-start">
-                       <h4 className="font-bold text-sm text-primary mb-1">Predicted Question</h4>
-                       <span className="text-[0.55rem] font-black uppercase text-primary bg-primary/10 px-1.5 py-0.5 rounded">94% Prob</span>
+                   <div className="pt-0.5">
+                     <div className="flex justify-between items-start mb-2">
+                       <h4 className="font-bold text-sm text-primary">Predicted Question</h4>
+                       <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded">94% Prob</span>
                      </div>
-                     <p className="text-xs text-on-surface-variant leading-relaxed">
-                       Based on past midterms, expect a 15-mark question on <strong className="text-white">Dijkstra's Algorithm</strong>. Review your PDF notes.
+                     <p className="text-[13px] font-medium text-on-surface-variant leading-relaxed">
+                       Based on past midterms, expect a 15-mark question on <strong className="text-on-surface font-bold">Dijkstra's Algorithm</strong>. Review your PDF notes.
                      </p>
                    </div>
                  </li>
                  
-                 <li className="flex gap-4 items-start bg-secondary/5 p-4 rounded-2xl border border-secondary/10 shadow-lg shadow-secondary/5 hover:-translate-y-1 transition-transform cursor-pointer">
-                   <div className="bg-secondary/20 p-2 rounded-lg">
-                     <span className="material-symbols-outlined text-secondary text-xl shrink-0">trending_up</span>
+                 <li className="flex gap-4 items-start bg-white p-5 rounded-xl border border-outline-variant shadow-sm hover:-translate-y-1 hover:shadow-soft transition-all cursor-pointer group">
+                   <div className="bg-secondary/10 border border-secondary/20 p-2.5 rounded-lg shrink-0 group-hover:bg-secondary/20 transition-colors">
+                     <span className="material-symbols-outlined text-secondary text-[22px]">trending_up</span>
                    </div>
-                   <div>
-                     <h4 className="font-bold text-sm text-secondary mb-1">Momentum Maintained</h4>
-                     <p className="text-xs text-on-surface-variant leading-relaxed">
-                       You have completed {tasks.filter(t => t.completed).length} focus tasks today. Keep up the high bandwidth!
+                   <div className="pt-0.5">
+                     <h4 className="font-bold text-sm text-secondary mb-2">Momentum Maintained</h4>
+                     <p className="text-[13px] font-medium text-on-surface-variant leading-relaxed">
+                       You have completed <strong className="text-on-surface font-bold">{tasks.filter(t => t.completed).length} focus tasks</strong> today. Keep up the high bandwidth!
                      </p>
                    </div>
                  </li>

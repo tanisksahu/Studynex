@@ -1,6 +1,11 @@
 const express = require('express');
-const { User, Subject, Unit, Mastery, Task, Material } = require('./models');
+const { User, Subject, Unit, Mastery, Task, Material, Exam } = require('./models');
+const multer = require('multer');
+const { extractAcademicData } = require('./services/ai/extractionService');
+const { processCommand } = require('./services/ai/actionEngine');
+
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware to require authId header
 router.use((req, res, next) => {
@@ -14,7 +19,7 @@ router.use((req, res, next) => {
 // Migration endpoint - Atomic Bulk Upserts
 router.post('/migrate', async (req, res) => {
   const { authId } = req;
-  const { profile, settings, notifications, subjects, units, mastery, tasks, materials } = req.body;
+  const { profile, settings, notifications, subjects, units, mastery, tasks, materials, exams } = req.body;
   
   if (typeof req.body !== 'object' || Array.isArray(req.body)) {
     return res.status(400).json({ error: 'Invalid payload format' });
@@ -90,6 +95,18 @@ router.post('/migrate', async (req, res) => {
       promises.push(Material.bulkWrite(materialOps));
     }
 
+    // 7. Exams Upsert
+    if (Array.isArray(exams) && exams.length > 0) {
+      const examOps = exams.map(e => ({
+        updateOne: {
+          filter: { userId: authId, id: e.id },
+          update: { $set: { ...e, userId: authId } },
+          upsert: true
+        }
+      }));
+      promises.push(Exam.bulkWrite(examOps));
+    }
+
     // Await all bulk operations simultaneously. If one fails, the error is caught
     await Promise.all(promises);
 
@@ -112,19 +129,20 @@ router.get('/data', async (req, res) => {
       });
     }
 
-    const [subjects, units, mastery, tasks, materials] = await Promise.all([
+    const [subjects, units, mastery, tasks, materials, exams] = await Promise.all([
       Subject.find({ userId: req.authId }),
       Unit.find({ userId: req.authId }),
       Mastery.find({ userId: req.authId }),
       Task.find({ userId: req.authId }),
-      Material.find({ userId: req.authId })
+      Material.find({ userId: req.authId }),
+      Exam.find({ userId: req.authId })
     ]);
 
     res.json({
       profile: user.profile,
       settings: user.settings,
       notifications: user.notifications,
-      subjects, units, mastery, tasks, materials
+      subjects, units, mastery, tasks, materials, exams
     });
   } catch (error) {
     console.error('Data fetch error:', error.message);
@@ -224,6 +242,59 @@ router.post('/materials', async (req, res) => {
   }));
   if (ops.length > 0) await Material.bulkWrite(ops);
   res.json({ success: true });
+});
+
+// Exams
+router.post('/exams', async (req, res) => {
+  const exam = await Exam.findOneAndUpdate(
+    { id: req.body.id, userId: req.authId },
+    { $set: { ...req.body, userId: req.authId } },
+    { new: true, upsert: true }
+  );
+  res.json(exam);
+});
+
+router.delete('/exams/:id', async (req, res) => {
+  await Exam.deleteOne({ id: req.params.id, userId: req.authId });
+  res.json({ success: true });
+});
+
+// --- AI Endpoints ---
+
+router.post('/ai/extract', upload.array('documents'), async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+    
+    let context = {};
+    if (req.body.context) {
+      try {
+        context = JSON.parse(req.body.context);
+      } catch (e) {
+        console.warn('Failed to parse context in /api/ai/extract:', e.message);
+      }
+    }
+    
+    const result = await extractAcademicData(req.files, context);
+    res.json(result);
+  } catch (error) {
+    console.error('AI Extract Error:', error);
+    res.status(500).json({ error: 'Internal AI Error' });
+  }
+});
+
+router.post('/ai/command', async (req, res) => {
+  try {
+    const { command, context } = req.body;
+    if (!command) return res.status(400).json({ error: 'Missing command' });
+    
+    const result = await processCommand(command, context || {});
+    res.json(result);
+  } catch (error) {
+    console.error('AI Command Error:', error);
+    res.status(500).json({ error: 'Internal AI Error' });
+  }
 });
 
 module.exports = router;

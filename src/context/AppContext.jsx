@@ -9,16 +9,41 @@ export const AppProvider = ({ children }) => {
   // Global Layout State
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
+  const [commandCenterState, setCommandCenterState] = useState('minimized');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isFocusModeOpen, setIsFocusModeOpen] = useState(false);
 
-  // Settings & Gamification
-  const [settings, setSettings] = useLocalStorage('studynex-settings', {
-    theme: 'dark', dataPersistence: true, aiInjection: true, notifications: true, reminders: true,
-  });
+  // Settings & Gamification (Deep Preferences Architecture)
+  const defaultPreferences = {
+    appearance: { theme: 'light', density: 'comfortable', colorMode: 'emerald' },
+    layout: { sidebarCollapsed: false, sidebarPosition: 'left' },
+    dashboard: { 
+      widgets: [
+        { id: 'hero', visible: true, order: 0 },
+        { id: 'summary', visible: true, order: 1 },
+        { id: 'progress', visible: true, order: 2 },
+        { id: 'consistency', visible: true, order: 3 },
+        { id: 'plan', visible: true, order: 4 },
+        { id: 'deadlines', visible: true, order: 5 },
+        { id: 'quick_actions', visible: true, order: 6 },
+      ]
+    },
+    notifications: { push: true, email: false, reminders: true, agentFeedback: true },
+    study: { dailyFocusHours: 2, defaultSessionLength: 25 },
+    ai: { autoInjection: true, proactiveSuggestions: true },
+    privacy: { dataCollection: false, publicProfile: false },
+    accessibility: { reduceMotion: false, highContrast: false }
+  };
+
+  const [settings, setSettings] = useLocalStorage('studynex-settings-v2', defaultPreferences);
 
   const [profile, setProfile] = useLocalStorage('studynex-profile', {
     firstName: 'Alex', lastName: 'Chen', email: 'alex.chen@university.edu', 
     institution: 'Stanford University', xp: 2500, level: 14, streak: 5, targetGpa: 3.9, studyTimeMinutes: 1450,
-    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHhQQIMYFDS_9WZQPwkM1W3IxXwjZ6FMn25e9szSYVa4DBuxa7LnkGxehfegV1xGeuAp_CC1gIXJPBXQXju8fmSuOGCJvj3wI0GjOExXlBgcXFa20LRi3Z_rs4aX2ELaelZGPvbrmAmCfgPSl7Y-JocuhRruXbfv_gUQLya1JU-GX1XOhBhtfzc_gzxdj38UmhDttlndnK-82KCvnABJ7PYbXKpHXalZiH4dluCnqlLD5XNWPMxo6h5a5dzJK8pKICGPW6-6EmMH42'
+    avatarUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCHhQQIMYFDS_9WZQPwkM1W3IxXwjZ6FMn25e9szSYVa4DBuxa7LnkGxehfegV1xGeuAp_CC1gIXJPBXQXju8fmSuOGCJvj3wI0GjOExXlBgcXFa20LRi3Z_rs4aX2ELaelZGPvbrmAmCfgPSl7Y-JocuhRruXbfv_gUQLya1JU-GX1XOhBhtfzc_gzxdj38UmhDttlndnK-82KCvnABJ7PYbXKpHXalZiH4dluCnqlLD5XNWPMxo6h5a5dzJK8pKICGPW6-6EmMH42',
+    degree: '', program: '', graduationYear: null,
+    skills: [], certifications: [], projects: [], experience: [], achievements: [],
+    linkedin: '', github: '', portfolio: '', interests: []
   });
 
   // NOTIFICATION SYSTEM
@@ -69,6 +94,11 @@ export const AppProvider = ({ children }) => {
     { day: 'Mon', hours: 4 }, { day: 'Tue', hours: 2.5 }, { day: 'Wed', hours: 5 }, { day: 'Thu', hours: 3 }, { day: 'Fri', hours: 6 }, { day: 'Sat', hours: 2 }, { day: 'Sun', hours: 4.5 }
   ]);
 
+  const [exams, setExams] = useLocalStorage('studynex-exams', [
+    { id: 201, subjectId: 1, subjectName: 'Data Structures', courseCode: 'CS201', date: '2026-05-15', startTime: '10:00', endTime: '13:00' },
+    { id: 202, subjectId: 2, subjectName: 'Microeconomics', courseCode: 'ECON101', date: '2026-06-01', startTime: '14:00', endTime: '16:00' }
+  ]);
+
   // Sync / Migration Logic
   useEffect(() => {
     const initApp = async () => {
@@ -78,7 +108,7 @@ export const AppProvider = ({ children }) => {
           setIsMigrating(true);
           toast.loading('Migrating data to Cloud...', { id: 'migration' });
           await api.migrate({
-            profile, settings, notifications, subjects: rawSubjects, units, mastery: masteryData, tasks, materials
+            profile, settings, notifications, subjects: rawSubjects, units, mastery: masteryData, tasks, materials, exams
           });
           localStorage.setItem('studynexMigrationVersion', '1.0');
           toast.success('Migration Complete!', { id: 'migration' });
@@ -87,14 +117,39 @@ export const AppProvider = ({ children }) => {
           // Fetch from DB
           const data = await api.getData();
           if (data) {
-            if (data.profile) setProfile(data.profile);
-            if (data.settings) setSettings(data.settings);
+            if (data.profile) {
+              setProfile(prev => ({
+                ...prev,
+                ...data.profile,
+                // Ensure arrays are initialized if missing in DB
+                skills: data.profile.skills || prev.skills || [],
+                certifications: data.profile.certifications || prev.certifications || [],
+                projects: data.profile.projects || prev.projects || [],
+                experience: data.profile.experience || prev.experience || [],
+                achievements: data.profile.achievements || prev.achievements || [],
+                interests: data.profile.interests || prev.interests || []
+              }));
+            }
+            if (data.settings) {
+              setSettings(prev => ({
+                ...defaultPreferences,
+                ...data.settings,
+                // Deep merge known nested objects to prevent missing keys if backend data is incomplete
+                appearance: { ...defaultPreferences.appearance, ...(data.settings.appearance || {}) },
+                layout: { ...defaultPreferences.layout, ...(data.settings.layout || {}) },
+                dashboard: { ...defaultPreferences.dashboard, ...(data.settings.dashboard || {}) },
+                notifications: { ...defaultPreferences.notifications, ...(data.settings.notifications || {}) },
+                study: { ...defaultPreferences.study, ...(data.settings.study || {}) },
+                ai: { ...defaultPreferences.ai, ...(data.settings.ai || {}) },
+              }));
+            }
             if (data.notifications) setNotifications(data.notifications);
             if (data.subjects) setRawSubjects(data.subjects);
             if (data.units) setUnits(data.units);
             if (data.mastery) setMasteryData(data.mastery);
             if (data.tasks) setTasks(data.tasks);
             if (data.materials) setMaterials(data.materials);
+            if (data.exams) setExams(data.exams);
           }
         }
       } catch (err) {
@@ -133,7 +188,7 @@ export const AppProvider = ({ children }) => {
     setNotifications([]);
   };
 
-  // Backward-Compatible Computed 'subjects' state
+  // Backward-Compatible Computed 'subjects' state with Priority Engine
   const subjects = useMemo(() => {
     return rawSubjects.map(sub => {
       const subUnits = units.filter(u => u.subjectId === sub.id);
@@ -141,6 +196,32 @@ export const AppProvider = ({ children }) => {
       const progress = sub.totalUnits > 0 ? Math.round((completed / sub.totalUnits) * 100) : 0;
       const mastery = masteryData.find(m => m.subjectId === sub.id) || { retention: 0, timeSpent: 0, level: 'Unset' };
       
+      // Calculate Priority Score
+      let priorityScore = 0;
+      const now = new Date();
+      const examDate = sub.examDate ? new Date(sub.examDate) : null;
+      let daysUntilExam = 999;
+      
+      if (examDate) {
+        const diffTime = examDate - now;
+        daysUntilExam = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+        // Closer exam = higher score (max 50 points if within 3 days)
+        if (daysUntilExam <= 3) priorityScore += 50;
+        else if (daysUntilExam <= 7) priorityScore += 30;
+        else if (daysUntilExam <= 14) priorityScore += 15;
+      }
+
+      // Lower progress = higher priority (max 40 points)
+      priorityScore += Math.max(0, 40 - (progress * 0.4));
+      
+      // Add weight for high difficulty (max 10 points)
+      if (sub.difficulty === 'Hard') priorityScore += 10;
+      else if (sub.difficulty === 'Medium') priorityScore += 5;
+
+      let priorityLabel = 'LOW';
+      if (priorityScore >= 70) priorityLabel = 'HIGH';
+      else if (priorityScore >= 40) priorityLabel = 'MEDIUM';
+
       return {
         ...sub,
         units: sub.totalUnits, 
@@ -149,8 +230,11 @@ export const AppProvider = ({ children }) => {
         timeSpent: mastery.timeSpent,
         masteryLevel: mastery.level,
         weak: progress < 50 || mastery.retention < 70,
+        priorityScore: Math.round(priorityScore),
+        priorityLabel,
+        daysUntilExam
       };
-    }).sort((a,b) => new Date(a.examDate) - new Date(b.examDate));
+    }).sort((a,b) => new Date(a.examDate || '2099-01-01') - new Date(b.examDate || '2099-01-01'));
   }, [rawSubjects, units, masteryData]);
 
   const updateMastery = (subjectId, minutes) => {
@@ -161,15 +245,15 @@ export const AppProvider = ({ children }) => {
   };
 
   const addSubject = (newSub) => {
-    if (rawSubjects.find(s => s.code.toLowerCase() === newSub.code.toLowerCase() || s.name.toLowerCase() === newSub.name.toLowerCase())) {
-       toast.error(`Course ${newSub.code} already exists!`, { style: { background: '#333', color: '#fff' }});
+    if (rawSubjects.find(s => s.code?.toLowerCase() === newSub.code?.toLowerCase() || s.name?.toLowerCase() === newSub.name?.toLowerCase())) {
+       toast.error(`Course ${newSub.code || newSub.name} already exists!`, { style: { background: '#333', color: '#fff' }});
        return false;
     }
-    const createdSubjectId = Date.now();
+    const createdSubjectId = Date.now() + Math.floor(Math.random() * 1000);
     const finalSub = { ...newSub, id: createdSubjectId };
     setRawSubjects(prev => [...prev, finalSub]);
     api.addSubject(finalSub).catch(console.error);
-    toast.success(`${newSub.code} successfully registered!`, { style: { background: '#222', color: '#fff' }});
+    toast.success(`${newSub.code || newSub.name} successfully registered!`, { style: { background: '#222', color: '#fff' }});
     return true;
   };
 
@@ -199,7 +283,7 @@ export const AppProvider = ({ children }) => {
   const addMaterial = (newMaterial) => {
     const material = {
       ...newMaterial,
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 1000),
       addedAt: new Date().toISOString(),
       confidence: Math.floor(Math.random() * (99 - 80 + 1) + 80),
     };
@@ -213,11 +297,24 @@ export const AppProvider = ({ children }) => {
     toast.success('Material safely removed.', { style: { background: '#222', color: '#fff' }});
   };
 
+  const addExam = (newExam) => {
+    const exam = { ...newExam, id: Date.now() + Math.floor(Math.random() * 1000) };
+    setExams(prev => [...prev, exam]);
+    toast.success(`Exam for ${exam.subjectName} logged.`);
+    api.addExam(exam).catch(console.error);
+    return exam;
+  };
+
+  const removeExam = (examId) => {
+    setExams(prev => prev.filter(e => e.id !== examId));
+    api.deleteExam(examId).catch(console.error);
+  };
+
   const addMaterialToUnit = (subjectId, unitNumber, materialData) => {
     const sub = rawSubjects.find(s => s.id === subjectId);
     const newMat = {
       ...materialData,
-      id: Date.now(),
+      id: Date.now() + Math.floor(Math.random() * 1000),
       subjectId,
       unitNumber,
       subject: sub?.name || 'Unknown',
@@ -293,74 +390,111 @@ export const AppProvider = ({ children }) => {
     });
   };
 
-  const updateSettings = (key, value) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+  const updateSettings = (category, key, value) => {
+    setSettings(prev => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [key]: value
+      }
+    }));
     toast.success(`Settings dynamically updated`, { style: { background: '#222', color: '#fff' }});
   };
 
   const dispatchAiAction = (input) => {
+    // Kept for backward compatibility, though the AI agent typically bypasses this
     return new Promise((resolve) => {
-      const lowerInput = input.toLowerCase();
-      let response = {
-        message: 'Command unverified. Try asking me to "mark [Subject] Unit [X] complete" or "plan my day".',
-        proposedAction: null
-      };
-      
-      const completeMatch = lowerInput.match(/(?:mark|complete|finish).+?(?:unit|chapter)\s*(\d+)/i);
-      if (completeMatch) {
-         const unitNum = parseInt(completeMatch[1]);
-         const targetSub = subjects.find(s => lowerInput.includes(s.name.toLowerCase().split(' ')[0]));
-         if (targetSub && unitNum <= targetSub.totalUnits) {
-           response = {
-             message: `Found goal: Mark Unit ${unitNum} of ${targetSub.name} as complete. Shall I execute the state update?`,
-             proposedAction: {
-               type: 'TOGGLE_UNIT',
-               params: { subjectId: targetSub.id, unitNumber: unitNum }
-             }
-           };
-         } else {
-           response.message = `⚠️ Missing parameters. I extracted Unit ${unitNum}, but please specify the exact Subject name attached to it.`;
-         }
-      } 
-      else if (lowerInput.includes('plan') || lowerInput.includes('schedule')) {
-         const incompleteSubs = subjects.filter(s => s.progress < 100);
-         if (incompleteSubs.length > 0) {
-           response = {
-             message: `Analytical scan complete. The ${incompleteSubs[0].name} exam is approaching. Shall I inject an emergency review task into your planner?`,
-             proposedAction: {
-               type: 'ADD_TASK',
-               params: { title: `AI Re-Review: ${incompleteSubs[0].name}`, subId: incompleteSubs[0].id }
-             }
-           };
-         }
-      }
-      setTimeout(() => resolve(response), 1000);
+      resolve({ message: 'Use the Command Center agent connection directly.', proposedAction: null });
     });
   };
 
   const executeAction = (action) => {
-    if (action.type === 'TOGGLE_UNIT') {
-      toggleUnitCompletion(action.params.subjectId, action.params.unitNumber);
-      toast.success('Unit Identity Synchronized');
-    } else if (action.type === 'ADD_TASK') {
-      setTasks(prev => [...prev, { id: Date.now(), title: action.params.title, time: 'AI Queue', completed: false, priority: true }]);
-      toast.success('Task Injected into Mission Protocol');
+    if (!action) return;
+    
+    switch(action.type) {
+      case 'CREATE_SUBJECTS':
+        let subsAdded = 0;
+        if (action.payload?.subjects) {
+          action.payload.subjects.forEach(sub => { if (addSubject(sub)) subsAdded++; });
+          toast.success(`${subsAdded} subjects enrolled.`);
+        }
+        break;
+      case 'UPDATE_SUBJECT':
+        if (action.payload?.subjectId && action.payload?.updates) {
+          setRawSubjects(prev => prev.map(s => s.id === action.payload.subjectId ? { ...s, ...action.payload.updates } : s));
+          toast.success(`Subject updated.`);
+        }
+        break;
+      case 'CREATE_EXAMS':
+        let examsAdded = 0;
+        if (action.payload?.exams) {
+          action.payload.exams.forEach(exam => { addExam(exam); examsAdded++; });
+          toast.success(`${examsAdded} exams scheduled.`);
+        }
+        break;
+      case 'CREATE_TASKS':
+        let tasksAdded = 0;
+        if (action.payload?.tasks) {
+          action.payload.tasks.forEach(t => {
+            setTasks(prev => [...prev, { id: Date.now() + Math.floor(Math.random() * 1000), title: t.title, time: t.time || 'AI Queue', completed: false, priority: t.priority || true }]);
+            tasksAdded++;
+          });
+          toast.success(`${tasksAdded} tasks injected into planner.`);
+        }
+        break;
+      case 'UPDATE_PROFILE':
+        if (action.payload?.profile) {
+          setProfile(prev => {
+            const updates = action.payload.profile;
+            // Arrays: Merge unique items
+            const mergeArrays = (oldArr = [], newArr = []) => [...new Set([...oldArr, ...newArr])];
+            
+            return {
+              ...prev,
+              ...updates,
+              // Specialized deep merges for arrays
+              skills: mergeArrays(prev.skills, updates.skills),
+              certifications: mergeArrays(prev.certifications, updates.certifications),
+              interests: mergeArrays(prev.interests, updates.interests),
+              // We could merge projects/experience by unique titles, but for simplicity we append or replace
+              projects: updates.projects && updates.projects.length ? updates.projects : prev.projects,
+              experience: updates.experience && updates.experience.length ? updates.experience : prev.experience,
+              achievements: mergeArrays(prev.achievements, updates.achievements),
+            };
+          });
+          toast.success(`Profile Intelligence Merged.`);
+        }
+        break;
+      case 'TOGGLE_UNIT':
+        toggleUnitCompletion(action.params.subjectId, action.params.unitNumber);
+        toast.success('Unit Identity Synchronized');
+        break;
+      case 'ADD_TASK':
+        setTasks(prev => [...prev, { id: Date.now(), title: action.params.title, time: 'AI Queue', completed: false, priority: true }]);
+        toast.success('Task Injected into Mission Protocol');
+        break;
+      default:
+        console.warn(`[CommandCenter] Unknown action type: ${action.type}`);
+        break;
     }
   };
 
   return (
     <AppContext.Provider value={{ 
       isMobileMenuOpen, setIsMobileMenuOpen,
+      isSearchOpen, setIsSearchOpen,
+      isFocusModeOpen, setIsFocusModeOpen,
       notifications, markNotificationRead, markAllNotificationsRead, clearNotifications,
-      subjects, rawSubjects, units, materials, tasks,
-      addSubject, removeSubject, deleteMaterial,
+      subjects, rawSubjects, units, materials, tasks, exams,
+      addSubject, removeSubject, deleteMaterial, addExam, removeExam,
       addMaterial, addMaterialToUnit, routeMaterialToUnit, updateUnitName, generateAiSuggestion,
       toggleTask, setTasks,
       toggleUnitCompletion,
       dispatchAiAction, executeAction,
       settings, updateSettings,
       profile, setProfile, addXp,
-      activityData
+      activityData,
+      commandCenterState, setCommandCenterState
     }}>
       {children}
     </AppContext.Provider>

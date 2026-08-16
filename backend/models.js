@@ -6,12 +6,21 @@ const userSchema = new mongoose.Schema({
     firstName: String, lastName: String, email: String, 
     institution: String, xp: Number, level: Number, 
     streak: Number, targetGpa: Number, studyTimeMinutes: Number,
-    avatarUrl: String
+    avatarUrl: String,
+    degree: String,
+    program: String,
+    graduationYear: Number,
+    skills: [String],
+    certifications: [String],
+    projects: [mongoose.Schema.Types.Mixed],
+    experience: [mongoose.Schema.Types.Mixed],
+    achievements: [String],
+    linkedin: String,
+    github: String,
+    portfolio: String,
+    interests: [String]
   },
-  settings: {
-    theme: String, dataPersistence: Boolean, aiInjection: Boolean, 
-    notifications: Boolean, reminders: Boolean
-  },
+  settings: { type: mongoose.Schema.Types.Mixed, default: {} },
   notifications: [{
     id: Number, 
     type: { type: String }, 
@@ -24,7 +33,8 @@ const userSchema = new mongoose.Schema({
 const subjectSchema = new mongoose.Schema({
   userId: { type: String, required: true, index: true },
   id: { type: Number, required: true },
-  name: String, code: String, difficulty: String, examDate: String, totalUnits: Number
+  name: String, code: String, difficulty: String, examDate: String, totalUnits: Number,
+  credits: Number, type: String, priority: String, targetGrade: String
 }, { timestamps: true });
 subjectSchema.index({ userId: 1, id: 1 }, { unique: true });
 
@@ -66,11 +76,28 @@ const materialSchema = new mongoose.Schema({
 }, { timestamps: true });
 materialSchema.index({ userId: 1, id: 1 }, { unique: true });
 
+const examSchema = new mongoose.Schema({
+  userId: { type: String, required: true, index: true },
+  id: { type: Number, required: true },
+  subjectId: Number,
+  subjectName: String,
+  courseCode: String,
+  date: String,
+  startTime: String,
+  endTime: String,
+  venue: String,
+  type: String,
+  semester: String,
+  sourceDocument: String
+}, { timestamps: true });
+examSchema.index({ userId: 1, id: 1 }, { unique: true });
+
 const User = mongoose.model('User', userSchema);
 const Subject = mongoose.model('Subject', subjectSchema);
 const Unit = mongoose.model('Unit', unitSchema);
 const Mastery = mongoose.model('Mastery', masterySchema);
 const Task = mongoose.model('Task', taskSchema);
 const Material = mongoose.model('Material', materialSchema);
+const Exam = mongoose.model('Exam', examSchema);
 
-module.exports = { User, Subject, Unit, Mastery, Task, Material };
+module.exports = { User, Subject, Unit, Mastery, Task, Material, Exam };

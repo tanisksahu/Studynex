@@ -285,7 +285,7 @@ export const AppProvider = ({ children }) => {
       ...newMaterial,
       id: Date.now() + Math.floor(Math.random() * 1000),
       addedAt: new Date().toISOString(),
-      confidence: Math.floor(Math.random() * (99 - 80 + 1) + 80),
+      confidence: 88,
     };
     setMaterials((prevMaterials) => [...prevMaterials, material]);
     addXp(50);
@@ -320,7 +320,7 @@ export const AppProvider = ({ children }) => {
       subject: sub?.name || 'Unknown',
       unit: `Unit ${unitNumber}`,
       createdAt: new Date().toISOString(),
-      confidence: Math.floor(Math.random() * 15 + 85),
+      confidence: 92,
       importance: null,
       summary: null,
       status: 'active',
@@ -374,7 +374,7 @@ export const AppProvider = ({ children }) => {
       subjectId: suggestedSub?.id,
       subjectName: suggestedSub?.name || 'Unknown',
       unitNumber: suggestedUnit,
-      confidence: bestMatch.score > 0 ? Math.floor(Math.random() * 10 + 80) : Math.floor(Math.random() * 20 + 55),
+      confidence: bestMatch.score > 0 ? 95 : 65,
     };
   };
 

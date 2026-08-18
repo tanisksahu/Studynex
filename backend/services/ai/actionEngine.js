@@ -1,35 +1,30 @@
-const { generateContent } = require('./geminiService');
+﻿const { generateContent } = require('./geminiService');
 
-const ACTION_ENGINE_PROMPT = `
-You are the StudyNex Action Engine. You receive a natural language command from a student, along with their current academic context (subjects, exams, tasks) and their current session history.
-Your job is to decide on the BEST structured action(s) to fulfill their command, or provide a helpful conversational response if no action is needed.
+const ACTION_ENGINE_PROMPT = \
+You are the StudyNex Autonomous Agent. You receive a natural language command from a student, along with their current academic context (subjects, exams, tasks, profile) and their current session history.
+Your job is to decide on the BEST structured action(s) to fulfill their command, or provide a helpful conversational response if no state-changing action is needed.
 
 Available Action Types:
 - CREATE_SUBJECTS: payload { subjects: [{ name, code, credits }] }
 - UPDATE_SUBJECT: payload { subjectId, updates: { name, code, credits } }
 - CREATE_EXAMS: payload { exams: [{ subjectName, date, startTime, endTime }] }
-- UPDATE_PROFILE: payload { profile: { degree, program, skills, etc. } } // MERGE logic
+- UPDATE_PROFILE: payload { profile: { degree, program, skills, etc. } }
 - CREATE_STUDY_PLAN: payload { sessions: [{ title, date, startTime, endTime, subjectId }] }
 - CREATE_TASKS: payload { tasks: [{ title, time, priority }] }
+- TOGGLE_UNIT: payload { subjectId, unitNumber }
 - NULL: if no data mutation is required.
 
 Rules:
-1. If the user refers to previous context (e.g. "Add those subjects"), look at the [SESSION_HISTORY].
-2. You can propose multiple actions if needed. Return them in an array.
-
-Return ONLY a JSON object with this exact structure (do not wrap in markdown):
+1. If the user says "hi", "hello", "hey", respond naturally and helpfully as the StudyNex Autonomous Agent. Use the user's firstName if available in context. Return NULL action type.
+2. If the user asks for their "Daily Study Brief" or "Plan my day" or "What should I study", use their context to summarize their priorities (exams coming up, tasks due, weak subjects) in the \message\ field. Return NULL action type if no database changes are needed, OR propose tasks if they want tasks created.
+3. If the user refers to previous context (e.g. "Add those subjects"), look at the [SESSION_HISTORY].
+4. Return ONLY a JSON object with this exact structure (do not wrap in markdown):
 {
-  "message": "A friendly, concise response explaining what you did or asking for clarification.",
-  "action": {
-    "type": "ACTION_TYPE or null",
-    "payload": { ... }
-  },
+  "message": "A friendly, natural response explaining what you did, or answering the user's question. Format nicely with line breaks if it is a study brief.",
   "proposedActions": [
-    { "type": "CREATE_SUBJECTS", "payload": { "subjects": [...] } }
+    { "type": "ACTION_TYPE", "payload": { ... } }
   ]
 }
-
-Note: If proposing multiple actions, use "proposedActions". If just one, use "action". Or just use "proposedActions" for everything to be safe.
 
 Context:
 [CONTEXT_PLACEHOLDER]
@@ -39,7 +34,7 @@ Session History:
 
 Command:
 [COMMAND_PLACEHOLDER]
-`;
+\;
 
 async function processCommand(command, context) {
   try {
@@ -58,17 +53,18 @@ async function processCommand(command, context) {
     
     // Clean up potential markdown formatting from Gemini
     let cleanJson = responseText.trim();
-    if (cleanJson.startsWith('```json')) cleanJson = cleanJson.substring(7);
-    if (cleanJson.startsWith('```')) cleanJson = cleanJson.substring(3);
-    if (cleanJson.endsWith('```')) cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+    if (cleanJson.startsWith('\\\json')) cleanJson = cleanJson.substring(7);
+    if (cleanJson.startsWith('\\\')) cleanJson = cleanJson.substring(3);
+    if (cleanJson.endsWith('\\\')) cleanJson = cleanJson.substring(0, cleanJson.length - 3);
     
     const parsed = JSON.parse(cleanJson.trim());
     
-    // Normalize to proposedActions array
     if (parsed.action && !parsed.proposedActions) {
-      parsed.proposedActions = [parsed.action];
+      parsed.proposedActions = parsed.action.type && parsed.action.type !== 'NULL' ? [parsed.action] : [];
     } else if (!parsed.proposedActions) {
       parsed.proposedActions = [];
+    } else {
+       parsed.proposedActions = parsed.proposedActions.filter(a => a.type && a.type !== 'NULL');
     }
     
     return parsed;

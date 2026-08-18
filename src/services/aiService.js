@@ -1,6 +1,7 @@
 import { getCurrentIdentity } from './identity';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const envUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = envUrl.endsWith('/api') ? envUrl : `${envUrl.replace(/\/+$/, '')}/api`;
 
 const getHeaders = () => {
   return {

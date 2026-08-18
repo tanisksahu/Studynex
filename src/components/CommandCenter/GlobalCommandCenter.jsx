@@ -12,6 +12,12 @@ const getConfidenceColor = (score) => {
   return 'bg-error/20 text-error';
 };
 
+const SUGGESTIONS = [
+  "Show my classes",
+  "Plan tomorrow",
+  "Analyze this document"
+];
+
 const GlobalCommandCenter = () => {
   const { commandCenterState, setCommandCenterState, subjects, exams = [], profile, executeAction } = useAppContext();
   const [input, setInput] = useState('');
@@ -131,8 +137,11 @@ const GlobalCommandCenter = () => {
       filesArray.forEach(file => formData.append('documents', file));
       formData.append('context', JSON.stringify(context));
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_URL}/api/ai/extract`, {
+      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const cleanedBase = baseURL.replace(/\/+$/, '');
+      const endpoint = `${cleanedBase}/api/ai/extract`;
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'x-user-id': localStorage.getItem('studynex-auth-id') || 'local-user-123'
@@ -329,8 +338,8 @@ const GlobalCommandCenter = () => {
                <span className="material-symbols-outlined text-[18px]">magic_button</span>
              </div>
              <div>
-               <h3 className="text-sm font-bold text-on-surface">Command Center</h3>
-               <p className="text-[10px] text-primary uppercase font-bold tracking-wider">Agent V2 Active</p>
+               <h3 className="text-sm font-bold text-on-surface">StudyNex Autonomous Agent</h3>
+               <p className="text-[10px] text-primary uppercase font-bold tracking-wider">Monitoring Global Context</p>
              </div>
           </div>
           <div className="flex gap-1">
@@ -371,9 +380,23 @@ const GlobalCommandCenter = () => {
 
              {/* Input Area */}
              <div className="p-3 bg-white border-t border-outline-variant shrink-0">
+               {/* Suggestions */}
+               <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-2">
+                 {SUGGESTIONS.map(sug => (
+                   <button 
+                     key={sug} 
+                     onClick={() => handleSend(null, sug)}
+                     disabled={isProcessing}
+                     className="whitespace-nowrap px-3 py-1.5 bg-surface-variant/50 hover:bg-surface-variant text-on-surface-variant rounded-full text-xs font-medium transition-colors border border-outline-variant/50 disabled:opacity-50"
+                   >
+                     {sug}
+                   </button>
+                 ))}
+               </div>
+               
                <form onSubmit={handleSend} className="flex flex-col gap-2">
                   <div className="flex items-center gap-2 bg-surface-variant/30 border border-outline-variant/50 rounded-xl p-1 pr-2 focus-within:border-primary/50 transition-colors">
-                    <input type="file" multiple ref={fileInputRef} className="hidden" accept="image/*,.pdf" onChange={(e) => handleFiles(Array.from(e.target.files))} />
+                    <input type="file" multiple ref={fileInputRef} className="hidden" accept="image/*,.pdf,.docx,.doc" onChange={(e) => handleFiles(Array.from(e.target.files))} />
                     <button type="button" onClick={() => fileInputRef.current?.click()} className="p-2 text-on-surface-variant hover:text-primary transition-colors hover:bg-white rounded-lg group relative">
                       <span className="material-symbols-outlined text-[20px]">attach_file</span>
                     </button>
@@ -412,7 +435,7 @@ const GlobalCommandCenter = () => {
                    {pendingActions.map((action, idx) => (
                       <div key={idx} className="mb-6">
                         <h5 className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-3">
-                          {action.type.replace(/_/g, ' ')}
+                          {action.type ? action.type.replace(/_/g, ' ') : 'ACTION'}
                         </h5>
                         {renderActionDetails(action, idx)}
                       </div>
@@ -424,7 +447,7 @@ const GlobalCommandCenter = () => {
                      Cancel
                    </button>
                    <button onClick={handleConfirmAll} className="flex-1 py-2.5 bg-primary hover:bg-primary/90 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-colors shadow-soft">
-                     Apply All Actions
+                     Approve Action
                    </button>
                 </div>
              </div>

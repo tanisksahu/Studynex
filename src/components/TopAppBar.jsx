@@ -51,45 +51,36 @@ const TopAppBar = () => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <header className="h-16 bg-white border-b border-outline-variant flex items-center justify-between px-4 lg:px-8 sticky top-0 z-30 transition-all w-full">
+    <header className="h-20 bg-white/80 backdrop-blur-md border-b border-outline-variant flex items-center justify-between px-6 lg:px-10 sticky top-0 z-30 transition-all w-full">
       
-      <div className="flex items-center gap-4">
-        <h2 className="text-xl font-semibold text-on-surface tracking-tight hidden lg:block">{getPageTitle()}</h2>
+      <div className="flex items-center gap-4 w-48">
+        <h2 className="text-xl lg:text-2xl font-bold text-on-surface tracking-tight hidden lg:block">{getPageTitle()}</h2>
         {/* Mobile Page Title */}
         <h2 className="text-lg font-bold text-on-surface tracking-tight lg:hidden">{getPageTitle()}</h2>
       </div>
 
-      <div className="flex flex-1 max-w-md mx-4 lg:mx-8 items-center">
-         <button onClick={() => setIsSearchOpen(true)} className="w-full flex items-center justify-between bg-surface-variant hover:bg-[#EAEAE5] border border-outline-variant rounded-lg px-3 py-2 transition-colors group">
-            <div className="flex items-center gap-2 text-on-surface-variant group-hover:text-on-surface">
-               <span className="material-symbols-outlined text-[18px]">search</span>
-               <span className="text-sm font-medium">Search StudyNex...</span>
+      <div className="flex flex-1 max-w-lg mx-4 lg:mx-8 items-center justify-center">
+         <button onClick={() => setIsSearchOpen(true)} className="w-full flex items-center justify-between bg-white hover:bg-surface border border-outline-variant rounded-xl px-4 py-2.5 transition-all group shadow-sm">
+            <div className="flex items-center gap-3 text-on-surface-variant group-hover:text-on-surface">
+               <span className="material-symbols-outlined text-[20px]">search</span>
+               <span className="text-sm font-medium">Search anything...</span>
             </div>
-            <kbd className="hidden lg:flex items-center gap-1 font-sans text-[10px] font-semibold text-on-surface-variant bg-white border border-outline-variant px-1.5 py-0.5 rounded opacity-70">
+            <kbd className="hidden lg:flex items-center gap-1 font-sans text-[10px] font-bold text-on-surface-variant bg-surface-variant border border-outline-variant px-2 py-0.5 rounded shadow-sm">
                <span className="text-[12px]">⌘</span> K
             </kbd>
          </button>
       </div>
 
-      <div className="flex items-center gap-2 lg:gap-4">
+      <div className="flex items-center justify-end gap-2 lg:gap-4 w-48">
         
-        {/* Calendar Shortcut */}
-        <button 
-          onClick={() => navigate('/plan')}
-          className="hidden md:flex w-9 h-9 rounded-md items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors"
-          title="Planner"
-        >
-          <span className="material-symbols-outlined text-[20px]">calendar_today</span>
-        </button>
-
         {/* Notification Bell & Dropdown */}
         <div className="relative" ref={notifRef}>
           <button 
             onClick={() => setShowNotifications(!showNotifications)}
-            className={`relative w-9 h-9 rounded-md flex items-center justify-center transition-colors ${showNotifications ? 'bg-surface-variant text-on-surface' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface'}`}
+            className={`relative w-10 h-10 rounded-full flex items-center justify-center transition-colors border border-transparent ${showNotifications ? 'bg-surface-variant text-on-surface border-outline-variant' : 'text-on-surface-variant hover:bg-surface-variant hover:text-on-surface hover:border-outline-variant'}`}
           >
-            <span className="material-symbols-outlined text-[20px]">notifications</span>
-            {unreadCount > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border-2 border-white"></span>}
+            <span className="material-symbols-outlined text-[22px]">notifications</span>
+            {unreadCount > 0 && <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-error rounded-full border-2 border-white"></span>}
           </button>
           
           <AnimatePresence>
@@ -99,7 +90,7 @@ const TopAppBar = () => {
                  animate={{ opacity: 1, y: 0, scale: 1 }}
                  exit={{ opacity: 0, y: 5, scale: 0.98 }}
                  transition={{ duration: 0.15 }}
-                 className="absolute right-0 top-12 w-80 bg-white border border-outline-variant rounded-xl shadow-elevated overflow-hidden z-[100]"
+                 className="absolute right-0 top-14 w-80 bg-white border border-outline-variant rounded-xl shadow-elevated overflow-hidden z-[100]"
                >
                  <div className="p-3 border-b border-outline-variant flex justify-between items-center bg-surface">
                     <h4 className="font-semibold text-sm text-on-surface">Notifications</h4>
@@ -136,19 +127,28 @@ const TopAppBar = () => {
              )}
           </AnimatePresence>
         </div>
+
+        {/* Calendar Shortcut */}
+        <button 
+          onClick={() => navigate('/plan')}
+          className="hidden md:flex w-10 h-10 rounded-full items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface hover:border-outline-variant border border-transparent transition-all"
+          title="Planner"
+        >
+          <span className="material-symbols-outlined text-[22px]">calendar_today</span>
+        </button>
         
-        <div className="h-5 w-px bg-outline-variant hidden md:block mx-1"></div>
+        <div className="h-6 w-px bg-outline-variant hidden md:block mx-1"></div>
         
         {/* Profile Avatar & Menu */}
         <div className="relative" ref={profileRef}>
           <button 
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2 group p-1 pr-2 rounded-md hover:bg-surface-variant transition-colors"
+            className="flex items-center gap-2.5 group p-1.5 pr-2.5 rounded-full hover:bg-surface-variant transition-colors border border-transparent hover:border-outline-variant"
           >
             <div className="w-8 h-8 rounded-full overflow-hidden border border-outline-variant group-hover:border-primary transition-colors shrink-0">
               <img src={profile.avatarUrl} alt="Profile" className="w-full h-full object-cover" />
             </div>
-            <span className="hidden lg:block text-sm font-medium text-on-surface">{profile.firstName}</span>
+            <span className="hidden lg:block text-sm font-semibold text-on-surface">{profile.firstName}</span>
             <span className="hidden lg:block material-symbols-outlined text-[18px] text-on-surface-variant">expand_more</span>
           </button>
 
@@ -159,7 +159,7 @@ const TopAppBar = () => {
                  animate={{ opacity: 1, y: 0, scale: 1 }}
                  exit={{ opacity: 0, y: 5, scale: 0.98 }}
                  transition={{ duration: 0.15 }}
-                 className="absolute right-0 top-12 w-56 bg-white border border-outline-variant rounded-xl shadow-elevated overflow-hidden z-[100]"
+                 className="absolute right-0 top-14 w-56 bg-white border border-outline-variant rounded-xl shadow-elevated overflow-hidden z-[100]"
                >
                  <div className="p-4 border-b border-outline-variant">
                     <p className="text-sm font-semibold text-on-surface truncate">{profile.firstName} {profile.lastName}</p>

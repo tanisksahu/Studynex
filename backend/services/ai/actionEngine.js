@@ -1,6 +1,6 @@
 const { generateContent } = require('./geminiService');
 
-const ACTION_ENGINE_PROMPT = \
+const ACTION_ENGINE_PROMPT = `
 You are the StudyNex Autonomous Agent. You receive a natural language command from a student, along with their current academic context (subjects, exams, tasks, profile) and their current session history.
 Your job is to decide on the BEST structured action(s) to fulfill their command, or provide a helpful conversational response if no state-changing action is needed.
 
@@ -34,7 +34,7 @@ Session History:
 
 Command:
 [COMMAND_PLACEHOLDER]
-\;
+`;
 
 async function processCommand(command, context) {
   try {

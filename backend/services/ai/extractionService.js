@@ -1,6 +1,6 @@
 const { generateContentMultimodal } = require('./geminiService');
 
-const EXTRACTION_PROMPT = \
+const EXTRACTION_PROMPT = `
 You are the StudyNex Agent Vanguard. You analyze documents/images and the user's existing context to propose concrete actions.
 The user just uploaded file(s). You MUST immediately analyze them and output what should happen next.
 
@@ -57,7 +57,7 @@ If the image is completely unreadable or missing:
 }
 
 [USER_CONTEXT_PLACEHOLDER]
-\;
+`;
 
 async function extractAcademicData(files, context = {}) {
   console.log('[CommandCenter] Multi-file extraction started');

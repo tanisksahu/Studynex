@@ -27,7 +27,7 @@ async function generateContentMultimodal(prompt, files) {
     throw new Error('GEMINI_API_KEY is not configured in the backend .env file.');
   }
   
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
   const model = genAI.getGenerativeModel({ model: modelName });
   
   const parts = [prompt];
@@ -68,7 +68,7 @@ async function generateContent(prompt, jsonMode = false) {
     throw new Error('GEMINI_API_KEY is not configured in the backend .env file.');
   }
 
-  const modelName = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
   const model = genAI.getGenerativeModel({ 
     model: modelName,
     generationConfig: jsonMode ? { responseMimeType: "application/json" } : {}

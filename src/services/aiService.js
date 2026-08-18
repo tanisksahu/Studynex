@@ -30,7 +30,15 @@ class AIService {
     });
     
     if (!res.ok) {
-      throw new Error('Failed to parse document');
+      let errMessage = 'Failed to parse document';
+      try {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorJson = await res.json();
+          errMessage = errorJson.message || errMessage;
+        }
+      } catch (e) {}
+      throw new Error(errMessage);
     }
     return res.json();
   }
@@ -49,7 +57,15 @@ class AIService {
     });
 
     if (!res.ok) {
-      throw new Error('Failed to process command');
+      let errMessage = 'Failed to process command';
+      try {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const errorJson = await res.json();
+          errMessage = errorJson.message || errMessage;
+        }
+      } catch (e) {}
+      throw new Error(errMessage);
     }
     return res.json();
   }

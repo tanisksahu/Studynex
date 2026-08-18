@@ -1,4 +1,4 @@
-﻿const { generateContent } = require('./geminiService');
+const { generateContent } = require('./geminiService');
 
 const ACTION_ENGINE_PROMPT = \
 You are the StudyNex Autonomous Agent. You receive a natural language command from a student, along with their current academic context (subjects, exams, tasks, profile) and their current session history.
@@ -53,11 +53,12 @@ async function processCommand(command, context) {
     
     // Clean up potential markdown formatting from Gemini
     let cleanJson = responseText.trim();
-    if (cleanJson.startsWith('\\\json')) cleanJson = cleanJson.substring(7);
-    if (cleanJson.startsWith('\\\')) cleanJson = cleanJson.substring(3);
-    if (cleanJson.endsWith('\\\')) cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanJson = jsonMatch[0];
+    }
     
-    const parsed = JSON.parse(cleanJson.trim());
+    const parsed = JSON.parse(cleanJson);
     
     if (parsed.action && !parsed.proposedActions) {
       parsed.proposedActions = parsed.action.type && parsed.action.type !== 'NULL' ? [parsed.action] : [];
@@ -71,7 +72,9 @@ async function processCommand(command, context) {
   } catch (error) {
     console.error('Action Engine Error:', error);
     return {
-      message: "I encountered an error processing your command.",
+      success: false,
+      errorCode: 'AI_PROCESSING_ERROR',
+      message: `AI failed to understand. Error: ${error.message}`,
       proposedActions: []
     };
   }

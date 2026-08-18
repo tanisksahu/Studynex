@@ -385,7 +385,14 @@ const GlobalCommandCenter = () => {
                  {SUGGESTIONS.map(sug => (
                    <button 
                      key={sug} 
-                     onClick={() => handleSend(null, sug)}
+                     type="button"
+                     onClick={() => {
+                       if (sug === 'Analyze this document') {
+                         fileInputRef.current?.click();
+                       } else {
+                         setInput(sug);
+                       }
+                     }}
                      disabled={isProcessing}
                      className="whitespace-nowrap px-3 py-1.5 bg-surface-variant/50 hover:bg-surface-variant text-on-surface-variant rounded-full text-xs font-medium transition-colors border border-outline-variant/50 disabled:opacity-50"
                    >

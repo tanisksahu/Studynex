@@ -306,7 +306,7 @@ router.post('/ai/command', async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('AI Command Error:', error);
-    res.status(500).json({ error: 'Internal AI Error' });
+    res.status(500).json({ success: false, errorCode: 'INTERNAL_ERROR', message: 'Internal AI Error' });
   }
 });
 

@@ -1,4 +1,4 @@
-﻿const { generateContentMultimodal } = require('./geminiService');
+const { generateContentMultimodal } = require('./geminiService');
 
 const EXTRACTION_PROMPT = \
 You are the StudyNex Agent Vanguard. You analyze documents/images and the user's existing context to propose concrete actions.
@@ -72,11 +72,12 @@ async function extractAcademicData(files, context = {}) {
     
     // Clean up potential markdown formatting from Gemini
     let cleanJson = responseText.trim();
-    if (cleanJson.startsWith('\\\json')) cleanJson = cleanJson.substring(7);
-    if (cleanJson.startsWith('\\\')) cleanJson = cleanJson.substring(3);
-    if (cleanJson.endsWith('\\\')) cleanJson = cleanJson.substring(0, cleanJson.length - 3);
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      cleanJson = jsonMatch[0];
+    }
 
-    const parsedData = JSON.parse(cleanJson.trim());
+    const parsedData = JSON.parse(cleanJson);
     
     if (typeof parsedData.success === 'undefined') {
       parsedData.success = true;

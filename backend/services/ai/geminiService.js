@@ -1,8 +1,28 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Ensure you have GEMINI_API_KEY in .env
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey || 'dummy_key_to_prevent_crash');
+function getGeminiClient() {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    const error = new Error('Gemini is not configured on the backend.');
+    error.code = 'AI_CONFIGURATION_ERROR';
+    error.statusCode = 503;
+    throw error;
+  }
+
+  return new GoogleGenerativeAI(apiKey);
+}
+
+function getModelName() {
+  const modelName = process.env.GEMINI_MODEL;
+  if (!modelName) {
+    const error = new Error('GEMINI_MODEL is not configured on the backend.');
+    error.code = 'AI_CONFIGURATION_ERROR';
+    error.statusCode = 503;
+    throw error;
+  }
+
+  return modelName;
+}
 
 /**
  * Converts a multer file buffer into the format required by Gemini
@@ -23,11 +43,8 @@ function fileToGenerativePart(file) {
  * @returns {Promise<string>}
  */
 async function generateContentMultimodal(prompt, files) {
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured in the backend .env file.');
-  }
-  
-  const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  const modelName = getModelName();
+  const genAI = getGeminiClient();
   const model = genAI.getGenerativeModel({ model: modelName });
   
   const parts = [prompt];
@@ -48,13 +65,8 @@ async function generateContentMultimodal(prompt, files) {
     parts.push(fileToGenerativePart(file));
   }
   
-  try {
-    const result = await model.generateContent(parts);
-    return result.response.text();
-  } catch (err) {
-    console.error('[GeminiService] Native API Error during generateContent:', err.message);
-    throw err; // bubble up to extractionService catch block
-  }
+  const result = await model.generateContent(parts);
+  return result.response.text();
 }
 
 /**
@@ -64,11 +76,8 @@ async function generateContentMultimodal(prompt, files) {
  * @returns {Promise<string>}
  */
 async function generateContent(prompt, jsonMode = false) {
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured in the backend .env file.');
-  }
-
-  const modelName = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+  const modelName = getModelName();
+  const genAI = getGeminiClient();
   const model = genAI.getGenerativeModel({ 
     model: modelName,
     generationConfig: jsonMode ? { responseMimeType: "application/json" } : {}
@@ -78,7 +87,17 @@ async function generateContent(prompt, jsonMode = false) {
   return result.response.text();
 }
 
+function getAIErrorInfo(error) {
+  return {
+    code: error?.code || 'AI_PROVIDER_ERROR',
+    statusCode: Number(error?.statusCode || error?.status || error?.response?.status) || 502,
+    message: String(error?.message || 'Gemini request failed').slice(0, 300),
+    model: process.env.GEMINI_MODEL || 'unconfigured'
+  };
+}
+
 module.exports = {
   generateContent,
-  generateContentMultimodal
+  generateContentMultimodal,
+  getAIErrorInfo
 };

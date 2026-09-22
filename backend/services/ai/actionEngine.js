@@ -70,13 +70,8 @@ async function processCommand(command, context) {
     
     return parsed;
   } catch (error) {
-    console.error('Action Engine Error:', error);
-    return {
-      success: false,
-      errorCode: 'AI_PROCESSING_ERROR',
-      message: `AI failed to understand. Error: ${error.message}`,
-      proposedActions: []
-    };
+    error.code = error.code || (error instanceof SyntaxError ? 'AI_INVALID_JSON' : 'AI_PROCESSING_ERROR');
+    throw error;
   }
 }
 

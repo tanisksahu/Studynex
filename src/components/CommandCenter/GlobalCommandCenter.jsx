@@ -24,7 +24,7 @@ const GlobalCommandCenter = () => {
   
   // Conversational memory
   const [history, setHistory] = useState([
-    { role: 'ai', text: 'StudyNex Agent online. Drop a document, date sheet, or resume to begin.' }
+    { role: 'ai', text: 'StudyNex OS Agent online. Drop a document, date sheet, or resume to begin.' }
   ]);
   
   // Pending Actions queue
@@ -132,28 +132,9 @@ const GlobalCommandCenter = () => {
       // Pass full context for deduplication logic inside the prompt
       const context = { subjects, exams, profile };
       
-      // Upload multiple files using FormData
-      const formData = new FormData();
-      filesArray.forEach(file => formData.append('documents', file));
-      formData.append('context', JSON.stringify(context));
+      const result = await ai.parseDocuments(filesArray, context);
 
-      const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const cleanedBase = baseURL.replace(/\/+$/, '');
-      const endpoint = `${cleanedBase}/api/ai/extract`;
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'x-user-id': localStorage.getItem('studynex-auth-id') || 'local-user-123'
-        },
-        body: formData
-      });
-      
-      const result = await response.json();
-      
-      if (!result.success) {
-        throw new Error(result.message || 'I encountered an error trying to extract data.');
-      }
+      if (!result.success) throw new Error(result.message || 'Document analysis failed.');
       
       processExtractionResult(result, fileNames);
     } catch (err) {
@@ -431,7 +412,7 @@ const GlobalCommandCenter = () => {
                     <h4 className="text-xs font-bold text-primary uppercase tracking-wider flex items-center gap-2">
                       <span className="material-symbols-outlined text-[16px]">bolt</span> Actions Prepared
                     </h4>
-                    <p className="text-[10px] text-on-surface-variant mt-0.5">StudyNex Agent proposes {pendingActions.length} actions</p>
+                    <p className="text-[10px] text-on-surface-variant mt-0.5">StudyNex OS Agent proposes {pendingActions.length} actions</p>
                   </div>
                   <button onClick={() => setPendingActions([])} className="text-on-surface-variant hover:text-error transition-colors">
                     <span className="material-symbols-outlined text-[18px]">close</span>

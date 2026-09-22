@@ -19,9 +19,14 @@ class AIService {
    * @param {File} file 
    * @returns {Promise<Object>} Structured extraction data
    */
-  async parseDocument(file) {
+  async parseDocument(file, context = {}) {
+    return this.parseDocuments([file], context);
+  }
+
+  async parseDocuments(files, context = {}) {
     const formData = new FormData();
-    formData.append('documents', file);
+    files.forEach(file => formData.append('documents', file));
+    formData.append('context', JSON.stringify(context));
 
     const res = await fetch(`${API_URL}/ai/extract`, {
       method: 'POST',
@@ -35,7 +40,7 @@ class AIService {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const errorJson = await res.json();
-          errMessage = errorJson.message || errMessage;
+          errMessage = errorJson.message || errorJson.error || errMessage;
         }
       } catch (e) {}
       throw new Error(errMessage);
@@ -62,7 +67,7 @@ class AIService {
         const contentType = res.headers.get('content-type');
         if (contentType && contentType.includes('application/json')) {
           const errorJson = await res.json();
-          errMessage = errorJson.message || errMessage;
+          errMessage = errorJson.message || errorJson.error || errMessage;
         }
       } catch (e) {}
       throw new Error(errMessage);

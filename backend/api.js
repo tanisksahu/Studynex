@@ -3,13 +3,26 @@ const { User, Subject, Unit, Mastery, Task, Material, Exam } = require('./models
 const multer = require('multer');
 const { extractAcademicData } = require('./services/ai/extractionService');
 const { processCommand } = require('./services/ai/actionEngine');
+const { getAIErrorInfo } = require('./services/ai/geminiService');
 
 const router = express.Router();
-const upload = multer({ storage: multer.memoryStorage() });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 5 },
+  fileFilter: (req, file, callback) => {
+    const supported = file.mimetype === 'application/pdf'
+      || file.mimetype === 'text/plain'
+      || file.mimetype.startsWith('image/');
+    if (!supported) return callback(new Error('Only PDF, text, and image files are supported.'));
+    callback(null, true);
+  }
+});
 
 // Middleware to require authId header
 router.use((req, res, next) => {
-  const authId = req.headers['x-user-id'];
+  const authId = typeof req.headers['x-user-id'] === 'string'
+    ? req.headers['x-user-id'].trim()
+    : '';
   if (!authId) return res.status(401).json({ error: 'Missing x-user-id header' });
   if (typeof authId !== 'string' || authId.length > 100) return res.status(400).json({ error: 'Invalid x-user-id' });
   req.authId = authId;
@@ -264,7 +277,7 @@ router.delete('/exams/:id', async (req, res) => {
 router.post('/ai/extract', (req, res) => {
   upload.array('documents')(req, res, async function (err) {
     if (err) {
-      console.error('Multer Error:', err);
+      console.error('[AI] route=/api/ai/extract request=upload error=%s', String(err.message || 'File upload failed').slice(0, 300));
       return res.status(400).json({ success: false, errorCode: 'FILE_NOT_RECEIVED', message: err.message || 'File upload failed', retryable: true });
     }
     
@@ -272,12 +285,6 @@ router.post('/ai/extract', (req, res) => {
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ success: false, errorCode: 'EMPTY_FILE', message: 'No files uploaded', retryable: true });
       }
-      
-      // Temporary diagnostic logs
-      console.log(`[AI Extract] filename=${req.files[0].originalname}`);
-      console.log(`[AI Extract] mimetype=${req.files[0].mimetype}`);
-      console.log(`[AI Extract] size=${req.files[0].size}`);
-      console.log(`[AI Extract] buffer available=${!!req.files[0].buffer}`);
       
       let context = {};
       if (req.body.context) {
@@ -291,8 +298,14 @@ router.post('/ai/extract', (req, res) => {
       const result = await extractAcademicData(req.files, context);
       res.json(result);
     } catch (error) {
-      console.error('AI Extract Error:', error);
-      res.status(500).json({ success: false, errorCode: 'EXTRACTION_PARSE_FAILED', message: 'Internal AI Error', retryable: true });
+      const info = getAIErrorInfo(error);
+      console.error('[AI] route=/api/ai/extract request=multimodal model=%s status=%s code=%s message=%s', info.model, info.statusCode, info.code, info.message);
+      res.status(info.statusCode >= 400 && info.statusCode < 600 ? info.statusCode : 502).json({
+        success: false,
+        errorCode: info.code,
+        message: 'Document analysis failed. Check the backend AI configuration or try again.',
+        retryable: info.statusCode >= 500
+      });
     }
   });
 });
@@ -305,8 +318,14 @@ router.post('/ai/command', async (req, res) => {
     const result = await processCommand(command, context || {});
     res.json(result);
   } catch (error) {
-    console.error('AI Command Error:', error);
-    res.status(500).json({ success: false, errorCode: 'INTERNAL_ERROR', message: 'Internal AI Error' });
+    const info = getAIErrorInfo(error);
+    console.error('[AI] route=/api/ai/command request=command model=%s status=%s code=%s message=%s', info.model, info.statusCode, info.code, info.message);
+    res.status(info.statusCode >= 400 && info.statusCode < 600 ? info.statusCode : 502).json({
+      success: false,
+      errorCode: info.code,
+      message: 'AI command failed. Check the backend AI configuration or try again.',
+      retryable: info.statusCode >= 500
+    });
   }
 });
 

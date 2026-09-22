@@ -84,13 +84,8 @@ async function extractAcademicData(files, context = {}) {
     }
     return parsedData;
   } catch (error) {
-    console.error('Extraction Error:', error);
-    return {
-      success: false,
-      errorCode: "GEMINI_EXTRACTION_FAILED",
-      message: "I encountered an error trying to extract structured data from these files.",
-      details: error.message
-    };
+    error.code = error.code || (error instanceof SyntaxError ? 'AI_INVALID_JSON' : 'GEMINI_EXTRACTION_FAILED');
+    throw error;
   }
 }
 

@@ -280,12 +280,12 @@ router.post('/ai/extract', (req, res) => {
       console.error('[AI] route=/api/ai/extract request=upload error=%s', String(err.message || 'File upload failed').slice(0, 300));
       return res.status(400).json({ success: false, errorCode: 'FILE_NOT_RECEIVED', message: err.message || 'File upload failed', retryable: true });
     }
-    
+
     try {
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({ success: false, errorCode: 'EMPTY_FILE', message: 'No files uploaded', retryable: true });
       }
-      
+
       let context = {};
       if (req.body.context) {
         try {
@@ -294,17 +294,17 @@ router.post('/ai/extract', (req, res) => {
           console.warn('Failed to parse context in /api/ai/extract:', e.message);
         }
       }
-      
+
       const result = await extractAcademicData(req.files, context);
       res.json(result);
     } catch (error) {
       const info = getAIErrorInfo(error);
       console.error('[AI] route=/api/ai/extract request=multimodal model=%s status=%s code=%s message=%s', info.model, info.statusCode, info.code, info.message);
-      res.status(info.statusCode >= 400 && info.statusCode < 600 ? info.statusCode : 502).json({
+      return res.status(info.statusCode).json({
         success: false,
         errorCode: info.code,
-        message: 'Document analysis failed. Check the backend AI configuration or try again.',
-        retryable: info.statusCode >= 500
+        message: info.message,
+        retryable: info.retryable
       });
     }
   });
@@ -313,18 +313,18 @@ router.post('/ai/extract', (req, res) => {
 router.post('/ai/command', async (req, res) => {
   try {
     const { command, context } = req.body;
-    if (!command) return res.status(400).json({ error: 'Missing command' });
-    
+    if (!command) return res.status(400).json({ success: false, errorCode: 'MISSING_COMMAND', message: 'Missing command', retryable: false });
+
     const result = await processCommand(command, context || {});
     res.json(result);
   } catch (error) {
     const info = getAIErrorInfo(error);
     console.error('[AI] route=/api/ai/command request=command model=%s status=%s code=%s message=%s', info.model, info.statusCode, info.code, info.message);
-    res.status(info.statusCode >= 400 && info.statusCode < 600 ? info.statusCode : 502).json({
+    return res.status(info.statusCode).json({
       success: false,
       errorCode: info.code,
-      message: 'AI command failed. Check the backend AI configuration or try again.',
-      retryable: info.statusCode >= 500
+      message: info.message,
+      retryable: info.retryable
     });
   }
 });

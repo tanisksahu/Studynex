@@ -59,15 +59,28 @@ cd ..
 
 ### Configure
 
-Create your local environment files and keep credentials out of Git.
+Create your local environment files and keep credentials out of Git. You can copy `backend/.env.example` to `backend/.env`.
+
+Example `backend/.env`:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
+GEMINI_FALLBACK_MODEL=gemini-3-flash-preview
+MONGODB_URI=your_mongodb_uri
+FRONTEND_URL=http://localhost:5173
+PORT=5000
+```
 
 ### Start
+
+Frontend:
 
 ```bash
 npm run dev
 ```
 
-For the backend:
+Backend:
 
 ```bash
 cd backend

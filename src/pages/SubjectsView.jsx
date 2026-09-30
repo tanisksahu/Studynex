@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { getDaysRemaining, getUrgencyText } from '../utils/dateUtils';
+import { getDaysRemaining, getUrgencyText, formatExamDate, getExamLabel, getExamClassification } from '../utils/dateUtils';
+import { classifySubjectSemester } from '../utils/academicMemory';
 import toast from 'react-hot-toast';
+import SEO from '../components/SEO/SEO';
 
 const SubjectsView = () => {
   const { 
@@ -15,6 +17,7 @@ const SubjectsView = () => {
   
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [semesterFilter, setSemesterFilter] = useState('all'); // 'all' | 'active' | 'historical'
   const [newSub, setNewSub] = useState({ name: '', code: '', examDate: '', totalUnits: 1, difficulty: 'Medium' });
 
   const handleRegister = (e) => {
@@ -29,10 +32,23 @@ const SubjectsView = () => {
     }
   };
 
+  const filteredSubjects = subjects.filter(sub => {
+    const { isHistorical } = classifySubjectSemester(sub);
+    if (semesterFilter === 'active') return !isHistorical;
+    if (semesterFilter === 'historical') return isHistorical;
+    return true;
+  });
+
   // --- OVERVIEW GRID / LIST ---
   if (!activeSubjectId) {
     return (
       <main className="p-4 lg:p-10 text-on-surface w-full overflow-hidden relative min-h-screen">
+        <SEO
+          title="Curriculum & Subject Mastery"
+          description="Relational tracking of course subjects, syllabus modules, and unit retention scores in StudyNex."
+          canonicalUrl="/subjects"
+          robots="noindex, nofollow"
+        />
         
         {/* Registration Modal Overlay */}
         <AnimatePresence>
@@ -119,9 +135,31 @@ const SubjectsView = () => {
            </div>
         </div>
 
+        {/* Semester Filter Tabs */}
+        <div className="max-w-7xl mx-auto mb-6 flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setSemesterFilter('all')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${semesterFilter === 'all' ? 'bg-primary text-white shadow-sm' : 'bg-surface-variant text-on-surface-variant hover:text-on-surface'}`}
+          >
+            All Subjects ({subjects.length})
+          </button>
+          <button
+            onClick={() => setSemesterFilter('active')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${semesterFilter === 'active' ? 'bg-primary text-white shadow-sm' : 'bg-surface-variant text-on-surface-variant hover:text-on-surface'}`}
+          >
+            Current Semester (Fall 2026)
+          </button>
+          <button
+            onClick={() => setSemesterFilter('historical')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${semesterFilter === 'historical' ? 'bg-primary text-white shadow-sm' : 'bg-surface-variant text-on-surface-variant hover:text-on-surface'}`}
+          >
+            Previous Semesters (Academic History)
+          </button>
+        </div>
+
         <div className={`max-w-7xl mx-auto ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'flex flex-col gap-3'}`}>
           <AnimatePresence>
-            {subjects.map((sub, i) => {
+            {filteredSubjects.map((sub, i) => {
                const daysLeft = getDaysRemaining(sub.examDate);
                const incomplete = sub.units - (sub.units * (sub.progress / 100)); // Rough math
                const urgency = getUrgencyText(daysLeft, incomplete);
@@ -154,9 +192,12 @@ const SubjectsView = () => {
                          <div className="w-full bg-surface-variant h-1.5 rounded-full overflow-hidden">
                             <motion.div initial={{ width: 0 }} animate={{ width: `${sub.progress}%` }} transition={{ duration: 0.8, ease: 'easeOut' }} className={`h-full ${sub.progress < 50 ? 'bg-error' : 'bg-primary'}`}></motion.div>
                          </div>
-                         <p className="text-[10px] text-on-surface-variant font-semibold text-right mt-2 uppercase tracking-wider">
-                           Exam: {new Date(sub.examDate).toLocaleDateString()} (-{daysLeft}d)
-                         </p>
+                         <div className="flex justify-between items-center text-[10px] text-on-surface-variant font-semibold mt-2 uppercase tracking-wider">
+                           <span>{formatExamDate(sub.examDate)}</span>
+                           <span className={examClass === 'PAST' ? 'text-on-surface-variant/70' : examClass === 'TODAY' ? 'text-error font-bold' : 'text-primary font-bold'}>
+                             {examLabel}
+                           </span>
+                        </div>
                       </div>
                    </motion.div>
                  );
@@ -177,7 +218,7 @@ const SubjectsView = () => {
                            </span>
                         </div>
                         <div className="flex items-center gap-3">
-                           <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Exam: {new Date(sub.examDate).toLocaleDateString()} (-{daysLeft}d)</p>
+                           <p className="text-[11px] font-bold text-on-surface-variant uppercase tracking-wider">Exam: {formatExamDate(sub.examDate)} ({examLabel})</p>
                            <span className={`text-[11px] font-bold ${urgency.color}`}>{urgency.text}</span>
                         </div>
                       </div>
@@ -212,6 +253,12 @@ const SubjectsView = () => {
 
   return (
     <motion.main initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="p-4 lg:p-10 text-on-surface flex flex-col h-full w-full max-w-7xl mx-auto">
+       <SEO
+         title={`${activeSub.name} — Subject Mastery`}
+         description={`Curriculum units, revision status, and study materials for ${activeSub.name} (${activeSub.code}).`}
+         canonicalUrl="/subjects"
+         robots="noindex, nofollow"
+       />
        
        {/* Breadcrumb Navbar */}
        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-outline-variant">

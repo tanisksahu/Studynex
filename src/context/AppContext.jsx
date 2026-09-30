@@ -196,19 +196,22 @@ export const AppProvider = ({ children }) => {
       const progress = sub.totalUnits > 0 ? Math.round((completed / sub.totalUnits) * 100) : 0;
       const mastery = masteryData.find(m => m.subjectId === sub.id) || { retention: 0, timeSpent: 0, level: 'Unset' };
       
-      // Calculate Priority Score
       let priorityScore = 0;
       const now = new Date();
       const examDate = sub.examDate ? new Date(sub.examDate) : null;
       let daysUntilExam = 999;
       
-      if (examDate) {
-        const diffTime = examDate - now;
-        daysUntilExam = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-        // Closer exam = higher score (max 50 points if within 3 days)
-        if (daysUntilExam <= 3) priorityScore += 50;
-        else if (daysUntilExam <= 7) priorityScore += 30;
-        else if (daysUntilExam <= 14) priorityScore += 15;
+      if (examDate && !isNaN(examDate.getTime())) {
+        const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const examMidnight = new Date(examDate.getFullYear(), examDate.getMonth(), examDate.getDate());
+        const diffDays = Math.round((examMidnight - todayMidnight) / (1000 * 60 * 60 * 24));
+        daysUntilExam = diffDays;
+        if (diffDays >= 0) {
+          // Closer upcoming exam = higher score (max 50 points if within 3 days)
+          if (daysUntilExam <= 3) priorityScore += 50;
+          else if (daysUntilExam <= 7) priorityScore += 30;
+          else if (daysUntilExam <= 14) priorityScore += 15;
+        }
       }
 
       // Lower progress = higher priority (max 40 points)
@@ -234,7 +237,7 @@ export const AppProvider = ({ children }) => {
         priorityLabel,
         daysUntilExam
       };
-    }).sort((a,b) => new Date(a.examDate || '2099-01-01') - new Date(b.examDate || '2099-01-01'));
+    }).sort((a,b) => (b.priorityScore || 0) - (a.priorityScore || 0));
   }, [rawSubjects, units, masteryData]);
 
   const updateMastery = (subjectId, minutes) => {

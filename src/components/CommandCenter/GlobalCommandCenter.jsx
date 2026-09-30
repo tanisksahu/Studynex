@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppContext } from '../../context/AppContext';
 import { ai } from '../../services/aiService';
 import toast from 'react-hot-toast';
+import { buildAIContextWithMemory } from '../../utils/academicMemory';
 
 // Helper to determine badge colors based on confidence
 const getConfidenceColor = (score) => {
@@ -19,7 +20,7 @@ const SUGGESTIONS = [
 ];
 
 const GlobalCommandCenter = () => {
-  const { commandCenterState, setCommandCenterState, subjects, exams = [], profile, executeAction } = useAppContext();
+  const { commandCenterState, setCommandCenterState, subjects, exams = [], units = [], tasks = [], profile, executeAction } = useAppContext();
   const [input, setInput] = useState('');
   
   // Conversational memory
@@ -80,7 +81,19 @@ const GlobalCommandCenter = () => {
     
     try {
       // Build context
-      const context = { subjects, exams, profile, history: history.slice(-10) };
+      const structuredContext = buildAIContextWithMemory({
+        subjects,
+        exams,
+        units,
+        tasks,
+        profile,
+        history: history.slice(-10)
+      });
+      const context = {
+        ...structuredContext,
+        subjects,
+        exams
+      };
       const response = await ai.processCommand(userMessage, context);
       
       setHistory(prev => [...prev, { role: 'ai', text: response.message }]);
@@ -91,8 +104,13 @@ const GlobalCommandCenter = () => {
         setPendingActions([response.action]);
       }
     } catch (err) {
-      toast.error('Agent Processing Failed');
-      setHistory(prev => [...prev, { role: 'ai', text: 'Sorry, I encountered an error connecting to the intelligence engine.' }]);
+      if (err?.retryable) {
+        toast('AI is temporarily busy. Retrying shortly...', { icon: '⏳' });
+        setHistory(prev => [...prev, { role: 'ai', text: 'AI is temporarily busy. Retrying shortly...' }]);
+      } else {
+        toast.error('Agent Processing Failed');
+        setHistory(prev => [...prev, { role: 'ai', text: 'Sorry, I encountered an error connecting to the intelligence engine.' }]);
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -139,8 +157,13 @@ const GlobalCommandCenter = () => {
       processExtractionResult(result, fileNames);
     } catch (err) {
       console.error(err);
-      toast.error('Document Parsing Failed');
-      setHistory(prev => [...prev, { role: 'ai', text: err.message || 'Sorry, I encountered an error parsing the document.' }]);
+      if (err?.retryable) {
+        toast('AI is temporarily busy. Retrying shortly...', { icon: '⏳' });
+        setHistory(prev => [...prev, { role: 'ai', text: 'AI is temporarily busy. Retrying shortly...' }]);
+      } else {
+        toast.error('Document Parsing Failed');
+        setHistory(prev => [...prev, { role: 'ai', text: err.message || 'Sorry, I encountered an error parsing the document.' }]);
+      }
     } finally {
       setIsProcessing(false);
       setFileQueue([]);

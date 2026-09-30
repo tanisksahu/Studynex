@@ -4,6 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import SEO from '../components/SEO/SEO';
+import { trackEvent, ANALYTICS_EVENTS } from '../utils/analytics';
+import { isUpcomingOrToday, getDaysRemaining, formatExamDate } from '../utils/dateUtils';
+import { synthesizeAcademicMemory } from '../utils/academicMemory';
+import AcademicHistoryModal from '../components/AcademicHistory/AcademicHistoryModal';
 
 const DEFAULT_WIDGETS = [
   { id: 'hero', visible: true, order: 0, title: 'Hero Banner', region: 'main' },
@@ -15,7 +20,7 @@ const DEFAULT_WIDGETS = [
   { id: 'streak', visible: true, order: 6, title: 'Study Streak', region: 'right' },
   { id: 'weekly_focus', visible: true, order: 7, title: 'Weekly Focus', region: 'right' },
   { id: 'deadlines', visible: true, order: 8, title: 'Upcoming Deadlines', region: 'right' },
-  { id: 'tip', visible: true, order: 9, title: 'StudyNex Tip', region: 'right' },
+  { id: 'tip', visible: true, order: 9, title: 'StudyNex OS Tip', region: 'right' },
   { id: 'quick_actions', visible: true, order: 10, title: 'Quick Actions', region: 'main' },
 ];
 
@@ -24,6 +29,7 @@ const Dashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [localWidgets, setLocalWidgets] = useState([]);
   const [draggedItemId, setDraggedItemId] = useState(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -83,15 +89,15 @@ const Dashboard = () => {
   const handleDragOver = (e, targetId) => {
     e.preventDefault();
     if (!draggedItemId || draggedItemId === targetId) return;
-    
+
     const sourceIdx = localWidgets.findIndex(w => w.id === draggedItemId);
     const targetIdx = localWidgets.findIndex(w => w.id === targetId);
-    
+
     const newArr = [...localWidgets];
     const [moved] = newArr.splice(sourceIdx, 1);
     newArr.splice(targetIdx, 0, moved);
     newArr.forEach((w, i) => w.order = i);
-    
+
     setLocalWidgets(newArr);
   };
 
@@ -108,18 +114,22 @@ const Dashboard = () => {
     weekday: 'long', day: 'numeric', month: 'long'
   });
 
-  // Calculate Data
-  const nextExam = [...(exams || [])].sort((a,b) => new Date(a.date) - new Date(b.date))[0];
-  const daysToExam = nextExam ? Math.max(0, Math.floor((new Date(nextExam.date) - new Date()) / (1000 * 60 * 60 * 24))) : null;
-  const highestPriority = subjects && subjects.length > 0 
-    ? [...subjects].sort((a,b) => (b.priorityScore || 0) - (a.priorityScore || 0))[0] 
+  // Calculate Data with Active Semester & Exam Filter
+  const activeUpcomingExams = [...(exams || [])]
+    .filter(e => isUpcomingOrToday(e.date) && !e.isArchived)
+    .sort((a,b) => new Date(a.date) - new Date(b.date));
+  const nextExam = activeUpcomingExams[0] || null;
+  const daysToExam = nextExam ? getDaysRemaining(nextExam.date) : null;
+  const academicMemory = synthesizeAcademicMemory({ subjects, exams });
+  const highestPriority = subjects && subjects.length > 0
+    ? [...subjects].sort((a,b) => (b.priorityScore || 0) - (a.priorityScore || 0))[0]
     : null;
 
   // Weakest subject calculation
   const weakestSubject = subjects && subjects.length > 0
     ? [...subjects].sort((a,b) => (a.progress || 0) - (b.progress || 0))[0]
     : null;
-    
+
   const pendingTasksCount = tasks.filter(t => !t.completed).length;
 
   // Donut chart calculations
@@ -155,48 +165,63 @@ const Dashboard = () => {
                     Continue your focus
                   </h2>
                </div>
-               
+
                <p className="text-on-surface-variant text-sm mb-1 max-w-sm font-medium">
                  Your next recommended session is <span className="font-semibold text-on-surface">{highestPriority?.name || 'Review'}</span>.
                </p>
-               {nextExam && (
+               {nextExam ? (
                  <p className="text-on-surface-variant text-sm mb-6 max-w-sm font-medium">
-                   You have an upcoming exam approaching in {daysToExam} days.
+                   You have an upcoming exam approaching {daysToExam === 0 ? 'today!' : `in ${daysToExam} days.`}
+                 </p>
+               ) : academicMemory?.overallInsights?.reinforcementSubjects?.length > 0 ? (
+                 <p className="text-on-surface-variant text-sm mb-6 max-w-md font-medium flex items-center gap-1.5 text-secondary">
+                   <span className="material-symbols-outlined text-secondary text-[16px]">history_edu</span>
+                   Academic Memory: Reinforce <span className="font-semibold text-on-surface">{academicMemory.overallInsights.reinforcementSubjects[0].name}</span> from last semester.
+                 </p>
+               ) : (
+                 <p className="text-on-surface-variant text-sm mb-6 max-w-sm font-medium">
+                   No immediate upcoming exams. Steady study pace recommended.
                  </p>
                )}
-               
+
                <div className="flex flex-wrap gap-3 mt-2">
-                 <button onClick={() => setIsFocusModeOpen(true)} className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg text-sm font-semibold tracking-wide transition-all shadow-sm">
-                   Start session
-                 </button>
+                  <button
+                    onClick={() => {
+                      trackEvent(ANALYTICS_EVENTS.FOCUS_MODE_STARTED, { source: 'dashboard_hero' });
+                      setIsFocusModeOpen(true);
+                    }}
+                    className="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg text-sm font-semibold tracking-wide transition-all shadow-sm"
+                  >
+                    Start session
+                  </button>
                  <Link to="/plan" className="bg-white hover:bg-surface-variant border border-outline-variant text-on-surface px-5 py-2.5 rounded-lg text-sm font-semibold tracking-wide transition-all">
                    View session plan
                  </Link>
                </div>
              </div>
-             
+
              <div className="hidden md:flex w-[40%] relative items-center justify-center">
-                <img src="https://illustrations.popsy.co/emerald/student-going-to-school.svg" alt="Study Workspace" className="w-64 h-64 object-contain opacity-90 drop-shadow-sm" />
-             </div>
+                 <img src="/student-workspace.svg" alt="StudyNex OS student focus workspace illustration" width="256" height="256" loading="lazy" className="w-64 h-64 object-contain opacity-95 drop-shadow-sm" />
+              </div>
           </div>
         );
-        
+
       case 'ai_brief':
         return (
           <div className="bg-gradient-to-r from-primary/10 to-primary-container/20 border border-primary/20 rounded-xl p-6 shadow-sm relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
                <span className="material-symbols-outlined text-8xl text-primary">auto_awesome</span>
             </div>
-            
+
             <div className="relative z-10 flex-1">
               <div className="flex items-center gap-2 mb-3">
                 <span className="material-symbols-outlined text-primary text-[20px]">magic_button</span>
                 <h3 className="font-bold text-primary text-[15px] uppercase tracking-wider">Daily AI Study Brief</h3>
               </div>
-              
+
               <div className="text-[14px] text-on-surface font-medium leading-relaxed max-w-2xl">
                 <p>
-                  You have <strong>{pendingTasksCount} tasks</strong> due today{nextExam ? ` and a ${nextExam.subjectName} exam approaching` : ''}. 
+                  You have <strong>{pendingTasksCount} tasks</strong> due today{nextExam ? ` and a ${nextExam.subjectName} exam approaching` : ''}.
                   {weakestSubject && ` Your weakest area currently is ${weakestSubject.name}.`}
                 </p>
                 <div className="mt-4 bg-white/60 p-4 rounded-lg border border-white/50 backdrop-blur-sm shadow-sm">
@@ -224,7 +249,7 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="relative z-10 shrink-0 self-stretch flex items-center">
                <button onClick={() => navigate('/command')} className="bg-primary text-white hover:bg-primary/90 transition-colors px-6 py-3 rounded-xl font-bold text-[13px] shadow-sm flex items-center gap-2">
                  <span className="material-symbols-outlined text-[18px]">terminal</span>
@@ -233,7 +258,7 @@ const Dashboard = () => {
             </div>
           </div>
         );
-      
+
       case 'metrics':
         return (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
@@ -247,15 +272,15 @@ const Dashboard = () => {
                    <span className="text-[11px] text-on-surface-variant">Today</span>
                 </div>
              </div>
-             
+
              <div className="bg-white border border-outline-variant/60 rounded-xl p-5 flex flex-col items-center justify-center text-center shadow-sm">
                 <div className="w-10 h-10 rounded-full bg-[#FEF3C7] flex items-center justify-center mb-3">
                    <span className="material-symbols-outlined text-[#D97706] text-[20px]">event</span>
                 </div>
                 <div className="flex flex-col items-center">
-                   <span className="text-2xl font-bold text-on-surface leading-none mb-1">{exams?.length || 0}</span>
-                   <span className="text-[13px] font-semibold text-on-surface mb-0.5">Upcoming exam</span>
-                   <span className="text-[11px] text-on-surface-variant">{nextExam ? `In ${daysToExam} days` : 'None'}</span>
+                   <span className="text-2xl font-bold text-on-surface leading-none mb-1">{activeUpcomingExams.length}</span>
+                   <span className="text-[13px] font-semibold text-on-surface mb-0.5">Upcoming exam{activeUpcomingExams.length !== 1 ? 's' : ''}</span>
+                   <span className="text-[11px] text-on-surface-variant">{nextExam ? (daysToExam === 0 ? 'Today' : `In ${daysToExam} days`) : 'None'}</span>
                 </div>
              </div>
 
@@ -317,12 +342,12 @@ const Dashboard = () => {
             </div>
             <div className="relative pl-3 mt-2 space-y-6 flex-1">
               <div className="absolute left-[17px] top-2 bottom-2 w-px bg-outline-variant z-0"></div>
-              
+
               {tasks.length > 0 ? tasks.map((task, idx) => (
-                <div key={task.id} 
+                <div key={task.id}
                      onClick={() => toggleTask(task.id)}
                      className={`group relative flex items-start gap-4 cursor-pointer transition-opacity z-10`}>
-                  
+
                   <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center shrink-0 z-10 mt-[-2px]">
                      {task.completed ? (
                         <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
@@ -358,29 +383,39 @@ const Dashboard = () => {
         );
 
       case 'upcoming_exams':
-        const nextExamsMain = [...(exams || [])].sort((a,b) => new Date(a.date) - new Date(b.date)).slice(0, 2);
+        const nextExamsMain = activeUpcomingExams.slice(0, 2);
         return (
           <div className="bg-white border border-outline-variant/60 rounded-xl p-6 shadow-sm">
             <div className="flex justify-between items-center mb-5">
                <h2 className="font-bold text-[15px] text-on-surface flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-[20px]">notifications_active</span> Upcoming Exams
                </h2>
-               <Link to="/exams" className="text-xs font-semibold text-primary hover:underline">View all</Link>
+               <div className="flex items-center gap-3">
+                 <button
+                   onClick={() => setIsHistoryModalOpen(true)}
+                   className="text-xs font-semibold text-secondary hover:text-primary transition-colors flex items-center gap-1"
+                   title="View Academic Memory and Past Semesters"
+                 >
+                   <span className="material-symbols-outlined text-[15px]">history_edu</span>
+                   Academic History
+                 </button>
+                 <Link to="/exams" className="text-xs font-semibold text-primary hover:underline">View all</Link>
+               </div>
             </div>
             {nextExamsMain.length > 0 ? (
                <div className="space-y-4">
                   {nextExamsMain.map(exam => {
-                     const examDate = new Date(exam.date);
-                     const daysLeft = Math.max(0, Math.floor((examDate - new Date()) / (1000 * 60 * 60 * 24)));
+                     const daysLeft = getDaysRemaining(exam.date);
+                     const isToday = daysLeft === 0;
                      return (
                      <div key={exam.id} className="flex flex-col gap-2 p-4 bg-surface rounded-xl border border-outline-variant">
                         <div className="flex justify-between items-start">
                            <div>
                               <h3 className="font-bold text-sm text-on-surface mb-0.5">{exam.subjectName}</h3>
-                              <p className="text-[12px] font-medium text-on-surface-variant">{exam.date} · {exam.startTime}</p>
+                              <p className="text-[12px] font-medium text-on-surface-variant">{formatExamDate(exam.date)} {exam.startTime ? `· ${exam.startTime}` : ''}</p>
                            </div>
                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${daysLeft <= 3 ? 'text-error bg-error/10' : 'text-primary bg-primary-container'}`}>
-                              {daysLeft === 0 ? 'Today' : `${daysLeft} days left`}
+                              {isToday ? 'Today' : `${daysLeft} days left`}
                            </span>
                         </div>
                      </div>
@@ -389,7 +424,8 @@ const Dashboard = () => {
             ) : (
                <div className="text-center py-6 text-on-surface-variant opacity-70">
                   <span className="material-symbols-outlined text-[24px] mb-2">event_available</span>
-                  <p className="text-[13px] font-semibold">No exams coming up</p>
+                  <p className="text-[13px] font-semibold">No upcoming exams scheduled</p>
+                  <p className="text-[11px] text-on-surface-variant mt-1">Previous semester exams are archived in Academic History.</p>
                </div>
             )}
           </div>
@@ -410,6 +446,10 @@ const Dashboard = () => {
                 <span className="material-symbols-outlined text-[18px]">note_add</span>
                 Add Material
              </button>
+             <button onClick={() => setIsHistoryModalOpen(true)} className="flex items-center gap-2 text-[13px] font-bold text-on-surface hover:text-primary transition-colors bg-white border border-outline-variant rounded-xl px-5 py-3 shadow-sm">
+                <span className="material-symbols-outlined text-[18px]">history_edu</span>
+                Academic History
+             </button>
           </div>
         );
 
@@ -425,7 +465,7 @@ const Dashboard = () => {
                 <div className="text-[32px] font-extrabold text-on-surface mb-0 leading-none">{profile.streak || 1} day{(profile.streak || 1) !== 1 ? 's' : ''}</div>
                 <div className="text-[12px] font-semibold text-on-surface-variant mt-1.5">Best: 5 days</div>
              </div>
-             
+
              <div className="flex justify-between items-end h-24 px-1">
                 {days.map((d, i) => {
                    const isPast = i <= currentDayIdx;
@@ -466,7 +506,7 @@ const Dashboard = () => {
                      </PieChart>
                   </ResponsiveContainer>
                </div>
-               
+
                <div className="flex-1 space-y-3">
                   {donutData.map(item => (
                      <div key={item.name} className="flex justify-between items-center text-[12px]">
@@ -487,8 +527,8 @@ const Dashboard = () => {
         );
 
       case 'deadlines':
-        const deadlinesExams = [...(exams || [])].sort((a,b) => new Date(a.date) - new Date(b.date)).slice(0, 2);
-        
+        const deadlinesExams = activeUpcomingExams.slice(0, 2);
+
         return (
           <div className="bg-white border border-outline-variant/60 rounded-xl p-6 shadow-sm">
             <div className="flex justify-between items-center mb-5">
@@ -498,10 +538,10 @@ const Dashboard = () => {
             {deadlinesExams.length > 0 ? (
               <ul className="space-y-5">
                 {deadlinesExams.map(exam => {
-                  const examDate = new Date(exam.date);
-                  const daysLeft = Math.max(0, Math.floor((examDate - new Date()) / (1000 * 60 * 60 * 24)));
+                  const daysLeft = getDaysRemaining(exam.date);
+                  const isToday = daysLeft === 0;
                   const isUrgent = daysLeft <= 3;
-                  
+
                   return (
                     <li key={exam.id} className="flex gap-3.5 items-center">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${isUrgent ? 'bg-error/10 text-error' : 'bg-[#FEF3C7] text-[#D97706]'}`}>
@@ -510,12 +550,12 @@ const Dashboard = () => {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-semibold text-[13px] text-on-surface truncate">{exam.subjectName}</h4>
                         <p className="text-[12px] font-medium text-on-surface-variant truncate">
-                           {daysLeft === 0 ? 'Today' : `${daysLeft} days left`}
+                           {isToday ? 'Today' : `${daysLeft} days left`}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
                          <div className={`text-[13px] font-bold ${isUrgent ? 'text-error' : 'text-[#D97706]'}`}>
-                           {examDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                           {formatExamDate(exam.date, { month: 'short', day: 'numeric' })}
                          </div>
                       </div>
                     </li>
@@ -538,7 +578,7 @@ const Dashboard = () => {
               </div>
               <h2 className="font-bold text-[14px] text-primary mb-3 flex items-center gap-2 relative z-10">
                  <span className="material-symbols-outlined text-[18px]">emoji_objects</span>
-                 StudyNex tip
+                 StudyNex OS tip
                </h2>
               <p className="text-[13px] font-medium text-on-surface-variant leading-relaxed text-on-primary-container/90 relative z-10">
                  Break large topics into smaller goals. Your brain learns better in steps. Try the Pomodoro technique for focus.
@@ -551,25 +591,53 @@ const Dashboard = () => {
   };
 
   const visibleWidgets = localWidgets.filter(w => w.visible);
-  
+
   const mainWidgets = visibleWidgets.filter(w => w.region === 'main' || !w.region).sort((a,b) => a.order - b.order);
   const rightWidgets = visibleWidgets.filter(w => w.region === 'right').sort((a,b) => a.order - b.order);
 
   return (
     <main className="p-6 lg:p-10 text-on-surface max-w-[1400px] mx-auto min-h-screen pb-16">
-      
+      <SEO
+        title="StudyNex OS — Your Academic Operating System"
+        description="StudyNex OS is an autonomous Academic Operating System and AI study planner for students. Master coursework, generate smart timetables, track exam readiness, and organize study materials."
+        canonicalUrl="/"
+        keywords="AI study planner, academic operating system, study timetable generator, university exam preparation, student productivity, syllabus tracker"
+      />
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-8">
          <div>
-           <h1 className="text-3xl lg:text-[34px] font-extrabold tracking-tight text-on-surface mb-2">
-             Good morning, {profile.firstName || 'Student'} 👋
+           <div className="flex items-center gap-2 mb-1.5">
+             <span className="text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-2.5 py-0.5 rounded-full border border-primary/20">
+               Academic Command Center
+             </span>
+             <span className="text-xs text-on-surface-variant font-medium">
+               {currentDate}
+             </span>
+           </div>
+           <h1 className="text-2xl sm:text-3xl lg:text-[34px] font-extrabold tracking-tight text-on-surface">
+             StudyNex OS — Your Academic Operating System
            </h1>
-           <p className="text-on-surface-variant font-medium text-sm lg:text-[15px]">
-             {currentDate}
+           <p className="text-on-surface-variant font-medium text-sm lg:text-[15px] mt-1">
+             Welcome back, {profile.firstName || 'Scholar'} · Autonomous study queue & exam readiness tracking
            </p>
          </div>
-         
-         <div className="flex items-center gap-3">
+
+         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+           <Link
+             to="/features"
+             className="flex items-center gap-1.5 text-[13px] font-bold text-primary hover:text-primary/80 transition-colors bg-primary/10 border border-primary/20 rounded-lg px-3.5 py-2.5 shadow-sm"
+           >
+             <span className="material-symbols-outlined text-[18px]">explore</span>
+             Tour & Features
+           </Link>
+           <Link
+             to="/ai-study-planner"
+             className="hidden sm:flex items-center gap-1.5 text-[13px] font-bold text-on-surface hover:text-primary transition-colors bg-white border border-outline-variant rounded-lg px-3.5 py-2.5 shadow-sm"
+           >
+             <span className="material-symbols-outlined text-[18px]">psychology</span>
+             AI Planner Info
+           </Link>
            {!isEditing ? (
              <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 text-[13px] font-bold text-on-surface hover:text-primary transition-colors bg-white border border-outline-variant rounded-lg px-4 py-2.5 shadow-sm">
                <span className="material-symbols-outlined text-[18px]">tune</span>
@@ -594,9 +662,9 @@ const Dashboard = () => {
       {/* Editing Mode Panel */}
       <AnimatePresence>
         {isEditing && (
-          <motion.div 
-            initial={{ height: 0, opacity: 0 }} 
-            animate={{ height: 'auto', opacity: 1 }} 
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden mb-8"
           >
@@ -623,20 +691,20 @@ const Dashboard = () => {
 
       {/* 2-Column Layout */}
       <div className="flex flex-col xl:flex-row gap-8 lg:gap-10">
-         
+
          {/* Main Content Area */}
          <div className="flex-1 min-w-0">
             <motion.div variants={containerLoader} initial="hidden" animate="show" className="flex flex-col space-y-6 lg:space-y-8">
-               
+
                {/* Hero */}
                {mainWidgets.find(w => w.id === 'hero') && renderWidgetContent('hero')}
-               
+
                {/* AI Brief */}
                {mainWidgets.find(w => w.id === 'ai_brief') && renderWidgetContent('ai_brief')}
 
                {/* Metrics */}
                {mainWidgets.find(w => w.id === 'metrics') && renderWidgetContent('metrics')}
-               
+
                {/* Middle Grid */}
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 mt-2">
                   {mainWidgets.find(w => w.id === 'progress') && renderWidgetContent('progress')}
@@ -649,7 +717,7 @@ const Dashboard = () => {
                      {renderWidgetContent('upcoming_exams')}
                   </div>
                )}
-               
+
                {/* Quick Actions */}
                {mainWidgets.find(w => w.id === 'quick_actions') && renderWidgetContent('quick_actions')}
 
@@ -668,7 +736,7 @@ const Dashboard = () => {
          </div>
 
       </div>
-      
+
       <div className="mt-16 border-t border-outline-variant pt-6 flex flex-col md:flex-row justify-between items-center text-[13px] font-medium text-on-surface-variant">
          <p>© 2026 StudyNex. All rights reserved.</p>
          <div className="flex gap-6 mt-3 md:mt-0">
@@ -677,6 +745,7 @@ const Dashboard = () => {
             <a href="#" className="hover:text-on-surface transition-colors">Help Center</a>
          </div>
       </div>
+      <AcademicHistoryModal isOpen={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} />
     </main>
   );
 };

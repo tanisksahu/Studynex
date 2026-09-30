@@ -4,6 +4,7 @@ import { useAppContext } from '../context/AppContext';
 import { calculateExamGaps, calculateExamReadiness, detectConflicts } from '../utils/examEngine';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import SEO from '../components/SEO/SEO';
 
 dayjs.extend(relativeTime);
 
@@ -18,7 +19,8 @@ const Exams = () => {
     });
   }, [exams]);
 
-  const upcomingExams = sortedExams.filter(e => dayjs(`${e.date} ${e.startTime || '00:00'}`).isAfter(dayjs().subtract(1, 'day')));
+  const upcomingExams = sortedExams.filter(e => dayjs(`${e.date} ${e.startTime || '00:00'}`).isAfter(dayjs().subtract(1, 'day')) && !e.isArchived);
+  const completedExams = sortedExams.filter(e => dayjs(`${e.date} ${e.startTime || '00:00'}`).isBefore(dayjs().subtract(1, 'day')) || e.isArchived);
   const nextExam = upcomingExams[0];
 
   const gaps = useMemo(() => calculateExamGaps(upcomingExams), [upcomingExams]);
@@ -28,6 +30,12 @@ const Exams = () => {
 
   return (
     <main className="p-4 lg:p-10 text-on-surface h-full flex flex-col gap-6 max-w-[1400px] mx-auto pb-24">
+      <SEO
+        title="Exams & Assessment Date Sheet"
+        description="Exam countdown timeline, conflict analysis, and revision pacing inside StudyNex."
+        canonicalUrl="/exams"
+        robots="noindex, nofollow"
+      />
       
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
@@ -41,6 +49,7 @@ const Exams = () => {
             <div className="bg-surface-variant/40 p-1 rounded-xl flex border border-outline-variant">
                <button onClick={() => setView('timeline')} className={`px-4 py-1.5 rounded-lg text-sm font-bold tracking-wide transition-all ${view === 'timeline' ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Timeline</button>
                <button onClick={() => setView('list')} className={`px-4 py-1.5 rounded-lg text-sm font-bold tracking-wide transition-all ${view === 'list' ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>List</button>
+               <button onClick={() => setView('completed')} className={`px-4 py-1.5 rounded-lg text-sm font-bold tracking-wide transition-all ${view === 'completed' ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:text-on-surface'}`}>Completed ({completedExams.length})</button>
             </div>
             <button className="bg-primary text-white hover:bg-primary/90 px-5 py-2.5 rounded-xl font-bold tracking-wider text-sm shadow-sm transition-all flex items-center gap-2">
                <span className="material-symbols-outlined text-[18px]">add</span> Add Exam
@@ -68,6 +77,42 @@ const Exams = () => {
                   </motion.div>
                )}
             </AnimatePresence>
+
+            {/* Completed Exams View */}
+            {view === 'completed' && (
+               <div className="sn-card p-6 lg:p-8 border border-outline-variant bg-white relative">
+                  <h2 className="text-sm font-bold text-on-surface uppercase tracking-wider mb-6 flex items-center gap-2">
+                     <span className="material-symbols-outlined text-[20px] text-secondary">history_edu</span> Completed & Archived Assessments
+                  </h2>
+                  {completedExams.length === 0 ? (
+                     <div className="text-center py-10 opacity-50">
+                        <span className="material-symbols-outlined text-[48px] mb-2">task_alt</span>
+                        <p className="font-medium">No completed exams logged yet.</p>
+                     </div>
+                  ) : (
+                     <div className="space-y-4">
+                        {completedExams.map(exam => (
+                           <div key={exam.id} className="p-4 rounded-xl border border-outline-variant bg-surface-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                              <div>
+                                 <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-xs font-bold text-on-surface-variant bg-surface-variant px-2 py-0.5 rounded uppercase">{exam.courseCode}</span>
+                                    <span className="text-xs font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-full">Completed / Spring 2026</span>
+                                 </div>
+                                 <h3 className="font-bold text-base text-on-surface">{exam.subjectName}</h3>
+                                 <p className="text-xs text-on-surface-variant font-medium mt-0.5">Administered on {dayjs(exam.date).format('DD MMMM YYYY')}</p>
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                 <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-1.5 rounded-lg flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                    Archived in Academic Memory
+                                 </span>
+                              </div>
+                           </div>
+                        ))}
+                     </div>
+                  )}
+               </div>
+            )}
 
             {/* Timeline View */}
             {view === 'timeline' && (
